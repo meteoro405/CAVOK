@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v3</title>
+<title>CAVOK · Meteo Aeronáutica v4</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -176,6 +176,19 @@ header .acciones{margin-left:auto; display:flex; gap:8px; align-items:center}
 
 .tarjeta details{border-top:1px solid var(--linea); padding:9px 16px; font-size:14px; color:var(--muted)}
 .tarjeta summary{cursor:pointer; user-select:none}
+
+/* --- diagrama de pistas --- */
+.pistas-svg{display:block; margin:10px auto 4px; max-width:300px; width:100%}
+.pistas-svg .pista{stroke:var(--texto); stroke-linecap:butt; opacity:.85}
+.pistas-svg .eje{stroke:var(--amarillo); stroke-width:1; stroke-dasharray:6 5; opacity:.9}
+.pistas-svg .desig{font-family:var(--f-mono); font-size:11px; font-weight:600; fill:var(--amarillo)}
+.pistas-svg .brujula{fill:none; stroke:var(--muted); stroke-width:1}
+.pistas-svg .norte{font-family:var(--f-mono); font-size:10px; fill:var(--muted)}
+.pistas-svg .viento{stroke:var(--vfr); stroke-width:2; fill:var(--vfr)}
+.pistas-svg .viento-txt{font-family:var(--f-mono); font-size:9.5px; fill:var(--muted)}
+.pistas-lista{font-family:var(--f-mono); font-size:12px; color:var(--texto); padding:2px 0 6px}
+.pistas-lista div{padding:2px 0}
+.pistas-fuente{font-size:10.5px; color:var(--muted)}
 .tarjeta code{
   display:block; margin-top:7px; font-family:var(--f-mono); font-size:13px;
   word-break:break-all; color:var(--texto); background:var(--panel2);
@@ -228,15 +241,16 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v3</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
+  <b>CAVOK v4</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
   · Los reportes se actualizan cada 30–60 min · Caché horaria local
 </footer>
 
+<script src="pistas.js"></script>
 <script>
 'use strict';
 
 /* =====================================================
-   CAVOK v3 — Meteo aeronáutica mundial (METAR)
+   CAVOK v4 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -728,6 +742,7 @@ async function cargarTarjeta(icao, forzar = false){
       <div class="metrica ancha"><div class="et">☁️ Nubes</div><div class="val">${esc(nubes)}</div></div>
       <div class="metrica ancha"><div class="et">🔵 Presión</div><div class="val">${esc(presion)}</div></div>
     </div>
+    ${renderPistas(icao, data)}
     <details>
       <summary>METAR crudo</summary>
       <code>${esc(data.raw_text || '—')}</code>
@@ -739,6 +754,111 @@ async function cargarTarjeta(icao, forzar = false){
 }
 
 function refrescar(icao){ cargarTarjeta(icao, true); }
+
+/* =====================================================
+   DIAGRAMA DE PISTAS (datos: OurAirports, dominio público)
+===================================================== */
+const SUPERFICIES = { ASP:'Asfalto', ASPH:'Asfalto', PEM:'Asfalto', BIT:'Asfalto',
+                      CON:'Hormigón', CONC:'Hormigón', PAVED:'Pavimento',
+                      GRS:'Césped', GRASS:'Césped', TURF:'Césped',
+                      GRE:'Ripio', GRV:'Ripio', GRAVEL:'Ripio',
+                      DIRT:'Tierra', SAND:'Arena', WATER:'Agua', UNK:'—' };
+
+function textoSuperficie(sup){
+  if (!sup) return '—';
+  const clave = sup.split('-')[0].split('/')[0];
+  return SUPERFICIES[clave] || sup;
+}
+
+function renderPistas(icao, metar){
+  if (typeof PISTAS === 'undefined') return '';
+  const pistas = PISTAS[icao];
+  if (!pistas || !pistas.length) return '';
+
+  const W = 300, H = 210, PAD = 42;
+  let segs;   // [{x1,y1,x2,y2,p}]
+
+  if (pistas.every(p => p.le && p.he)){
+    /* Proyección equirectangular local → posiciones reales relativas */
+    const lats = [], lons = [];
+    pistas.forEach(p => { lats.push(p.le[0], p.he[0]); lons.push(p.le[1], p.he[1]); });
+    const lat0 = (Math.min(...lats) + Math.max(...lats)) / 2;
+    const k = Math.cos(lat0 * Math.PI / 180);
+    const pts = pistas.map(p => ({
+      x1: p.le[1] * k, y1: -p.le[0], x2: p.he[1] * k, y2: -p.he[0], p
+    }));
+    const xs = [], ys = [];
+    pts.forEach(q => { xs.push(q.x1, q.x2); ys.push(q.y1, q.y2); });
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) || 1e-9;
+    const escala = (Math.min(W, H) - 2 * PAD) / span;
+    segs = pts.map(q => ({
+      x1: W/2 + (q.x1 - cx) * escala, y1: H/2 + (q.y1 - cy) * escala,
+      x2: W/2 + (q.x2 - cx) * escala, y2: H/2 + (q.y2 - cy) * escala, p: q.p
+    }));
+  } else {
+    /* Sin coordenadas: dibujar por rumbo, largos relativos */
+    const maxM = Math.max(...pistas.map(p => p.m || 1000));
+    segs = pistas.map((p, i) => {
+      const L = ((p.m || 1000) / maxM) * (Math.min(W, H) - 2 * PAD);
+      const a = (p.hdg ?? 0) * Math.PI / 180;
+      const dx = Math.sin(a), dy = -Math.cos(a);
+      const ox = (i - (pistas.length - 1) / 2) * 18;   // separar paralelas
+      return { x1: W/2 - dx*L/2 + ox, y1: H/2 - dy*L/2,
+               x2: W/2 + dx*L/2 + ox, y2: H/2 + dy*L/2, p };
+    });
+  }
+
+  /* Pistas + designadores */
+  let svg = '';
+  segs.forEach(s => {
+    const ancho = Math.max(4, Math.min(9, (s.p.ancho || 30) / 8));
+    svg += `<line class="pista" x1="${s.x1.toFixed(1)}" y1="${s.y1.toFixed(1)}" x2="${s.x2.toFixed(1)}" y2="${s.y2.toFixed(1)}" stroke-width="${ancho.toFixed(1)}"/>`;
+    svg += `<line class="eje" x1="${s.x1.toFixed(1)}" y1="${s.y1.toFixed(1)}" x2="${s.x2.toFixed(1)}" y2="${s.y2.toFixed(1)}"/>`;
+    const dx = s.x2 - s.x1, dy = s.y2 - s.y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len;
+    svg += `<text class="desig" x="${(s.x1 - ux*13).toFixed(1)}" y="${(s.y1 - uy*13).toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${esc(s.p.ids[0])}</text>`;
+    svg += `<text class="desig" x="${(s.x2 + ux*13).toFixed(1)}" y="${(s.y2 + uy*13).toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${esc(s.p.ids[1])}</text>`;
+  });
+
+  /* Brújula (Norte arriba) */
+  svg += `<g class="brujula-g">
+    <circle class="brujula" cx="22" cy="24" r="13"/>
+    <line x1="22" y1="33" x2="22" y2="17" stroke="var(--muted)" stroke-width="1.5"/>
+    <path d="M 22 13 L 18.5 20 L 25.5 20 Z" fill="var(--muted)"/>
+    <text class="norte" x="22" y="49" text-anchor="middle">N</text>
+  </g>`;
+
+  /* Flecha de viento desde el METAR (dirección verdadera, como las pistas) */
+  if (metar?.wind?.degrees != null){
+    const deg = metar.wind.degrees;
+    const kt  = metar.wind.speed_kts;
+    svg += `<g transform="translate(${W-26},26)">
+      <g class="viento" transform="rotate(${deg})">
+        <line x1="0" y1="-13" x2="0" y2="11"/>
+        <path d="M 0 15 L -4.5 7 L 4.5 7 Z"/>
+      </g>
+      <text class="viento-txt" x="0" y="34" text-anchor="middle">${deg}°${kt != null ? ' · ' + kt + ' kt' : ''}</text>
+    </g>`;
+  }
+
+  /* Lista con dimensiones */
+  const lista = pistas.map(p => {
+    const dim = p.m ? `${p.m.toLocaleString('es-AR')} m${p.ancho ? ' × ' + p.ancho + ' m' : ''}` : 's/d';
+    return `<div>${esc(p.ids.join('/'))} · ${dim} · ${esc(textoSuperficie(p.sup))}</div>`;
+  }).join('');
+
+  return `
+    <details class="pistas">
+      <summary>🛬 Pistas (${pistas.length})</summary>
+      <svg class="pistas-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img"
+           aria-label="Diagrama de pistas de ${esc(icao)}">${svg}</svg>
+      <div class="pistas-lista">${lista}</div>
+      <div class="pistas-fuente">Norte arriba · flecha = viento actual · datos OurAirports</div>
+    </details>`;
+}
 
 /* =====================================================
    TEMA CLARO / OSCURO
