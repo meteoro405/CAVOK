@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v2</title>
+<title>CAVOK · Meteo Aeronáutica v3</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 /* ============ TOKENS ============ */
 :root{
   --amarillo:#F5B941;          /* señalética de rodaje */
   --vfr:#3FC97E; --mvfr:#EBB748; --ifr:#EF6363; --lifr:#EF6363;
   --radio:12px;
-  --f-display:'Barlow Condensed', sans-serif;
+  --f-display:'Saira Condensed', sans-serif;
   --f-body:'Barlow', system-ui, sans-serif;
   --f-mono:'JetBrains Mono', monospace;
 }
@@ -35,7 +35,7 @@
 *{box-sizing:border-box; margin:0; padding:0}
 body{
   background:var(--bg); color:var(--texto);
-  font-family:var(--f-body); font-size:15px; line-height:1.45;
+  font-family:var(--f-body); font-size:17px; line-height:1.45;
   min-height:100vh; transition:background .25s, color .25s;
 }
 button{font-family:inherit; cursor:pointer}
@@ -48,16 +48,16 @@ header{
   padding:18px 22px; border-bottom:1px solid var(--linea);
 }
 .logo{
-  font-family:var(--f-mono); font-weight:600; font-size:20px; letter-spacing:2px;
+  font-family:var(--f-mono); font-weight:600; font-size:23px; letter-spacing:2px;
   background:var(--placa-bg); color:var(--amarillo);
   border:2px solid var(--placa-borde); border-radius:6px; padding:4px 12px;
 }
-.titulos h1{font-family:var(--f-display); font-weight:700; font-size:24px; letter-spacing:.5px; line-height:1.1}
-.titulos p{color:var(--muted); font-size:12.5px}
+.titulos h1{font-family:var(--f-display); font-weight:700; font-size:28px; letter-spacing:.5px; line-height:1.1}
+.titulos p{color:var(--muted); font-size:14px}
 header .acciones{margin-left:auto; display:flex; gap:8px; align-items:center}
 .btn-tema{
   background:var(--panel); border:1px solid var(--linea); color:var(--texto);
-  border-radius:8px; padding:7px 12px; font-size:14px;
+  border-radius:8px; padding:7px 12px; font-size:16px;
 }
 .btn-tema:hover{border-color:var(--amarillo)}
 
@@ -65,7 +65,7 @@ header .acciones{margin-left:auto; display:flex; gap:8px; align-items:center}
 .buscador-zona{max-width:1100px; margin:26px auto 0; padding:0 22px}
 .buscador{position:relative}
 .buscador input{
-  width:100%; padding:14px 16px; font-size:16px; font-family:var(--f-body);
+  width:100%; padding:14px 16px; font-size:18px; font-family:var(--f-body);
   background:var(--panel); color:var(--texto);
   border:1px solid var(--linea); border-radius:var(--radio);
 }
@@ -79,26 +79,51 @@ header .acciones{margin-left:auto; display:flex; gap:8px; align-items:center}
 .sugerencias.abierta{display:block}
 .sugerencia{
   display:flex; align-items:center; gap:12px; width:100%; text-align:left;
-  padding:11px 14px; background:none; border:none; color:var(--texto); font-size:15px;
+  padding:11px 14px; background:none; border:none; color:var(--texto); font-size:17px;
   border-bottom:1px solid var(--linea);
 }
 .sugerencia:last-child{border-bottom:none}
 .sugerencia:hover, .sugerencia.activa{background:var(--panel2)}
 .sugerencia .icao-mini{
-  font-family:var(--f-mono); font-size:12.5px; font-weight:600; letter-spacing:1px;
+  font-family:var(--f-mono); font-size:14px; font-weight:600; letter-spacing:1px;
   color:var(--amarillo); background:var(--placa-bg); border-radius:4px; padding:2px 7px;
   min-width:54px; text-align:center;
 }
-.sugerencia .origen{margin-left:auto; font-size:11px; color:var(--muted)}
-.aviso-busqueda{padding:11px 14px; color:var(--muted); font-size:13.5px}
+.sugerencia .origen{margin-left:auto; font-size:12.5px; color:var(--muted)}
+.aviso-busqueda{padding:11px 14px; color:var(--muted); font-size:15.5px}
 
 /* ============ HISTORIAL ============ */
-.historial{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
-.historial .chip{
+.historial{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center}
+.chip{
+  display:inline-flex; align-items:center;
   background:var(--panel); border:1px solid var(--linea); color:var(--muted);
-  border-radius:99px; padding:5px 13px; font-size:13px;
+  border-radius:99px; overflow:hidden;
 }
-.historial .chip:hover{color:var(--texto); border-color:var(--amarillo)}
+.chip:hover{color:var(--texto); border-color:var(--amarillo)}
+.chip-nombre{
+  background:none; border:none; color:inherit; font-size:15px;
+  padding:6px 4px 6px 14px;
+}
+.chip-x{
+  background:none; border:none; color:inherit; font-size:13px;
+  padding:6px 11px 6px 5px; opacity:.55;
+}
+.chip-x:hover{opacity:1; color:var(--ifr)}
+.chip-limpiar{
+  background:none; border:none; color:var(--muted); font-size:13px;
+  text-decoration:underline; padding:6px 4px;
+}
+.chip-limpiar:hover{color:var(--texto)}
+
+/* ============ ACCIONES DEL TABLERO ============ */
+.tablero-acciones{
+  grid-column:1/-1; display:flex; justify-content:flex-end;
+}
+.btn-quitar-todos{
+  background:none; border:1px solid var(--linea); color:var(--muted);
+  border-radius:8px; padding:6px 14px; font-size:14px;
+}
+.btn-quitar-todos:hover{color:var(--texto); border-color:var(--ifr)}
 
 /* ============ TABLERO ============ */
 .tablero{
@@ -118,15 +143,15 @@ header .acciones{margin-left:auto; display:flex; gap:8px; align-items:center}
 }
 .tarjeta-cab{display:flex; align-items:center; gap:12px; padding:14px 16px 10px}
 .placa{
-  font-family:var(--f-mono); font-weight:600; font-size:21px; letter-spacing:3px;
+  font-family:var(--f-mono); font-weight:600; font-size:24px; letter-spacing:3px;
   background:var(--placa-bg); color:var(--amarillo);
   border:2px solid var(--placa-borde); border-radius:6px; padding:3px 10px 3px 13px;
 }
-.tarjeta-cab .ciudad{font-family:var(--f-display); font-weight:600; font-size:19px; line-height:1.15}
-.tarjeta-cab .observado{font-size:11.5px; color:var(--muted)}
+.tarjeta-cab .ciudad{font-family:var(--f-display); font-weight:600; font-size:22px; line-height:1.15}
+.tarjeta-cab .observado{font-size:13px; color:var(--muted)}
 .tarjeta-cab .botones{margin-left:auto; display:flex; gap:4px}
 .btn-ico{
-  background:none; border:none; color:var(--muted); font-size:15px;
+  background:none; border:none; color:var(--muted); font-size:17px;
   padding:4px 6px; border-radius:6px;
 }
 .btn-ico:hover{color:var(--texto); background:var(--panel2)}
@@ -134,7 +159,7 @@ header .acciones{margin-left:auto; display:flex; gap:8px; align-items:center}
 .banda{
   display:flex; align-items:center; gap:8px;
   margin:4px 16px 12px; padding:8px 12px; border-radius:8px;
-  font-weight:600; font-size:14px; color:#fff;
+  font-weight:600; font-size:16px; color:#fff;
 }
 .banda .punto{width:10px; height:10px; border-radius:50%; background:#fff; flex:none;
   animation:latido 2.4s ease-in-out infinite}
@@ -145,34 +170,34 @@ header .acciones{margin-left:auto; display:flex; gap:8px; align-items:center}
   background:var(--linea); border-top:1px solid var(--linea);
 }
 .metrica{background:var(--panel); padding:10px 16px}
-.metrica .et{font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted)}
-.metrica .val{font-family:var(--f-mono); font-size:15.5px; margin-top:2px}
+.metrica .et{font-size:12.5px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted)}
+.metrica .val{font-family:var(--f-mono); font-size:18px; margin-top:2px}
 .metrica.ancha{grid-column:1/-1}
 
-.tarjeta details{border-top:1px solid var(--linea); padding:9px 16px; font-size:12px; color:var(--muted)}
+.tarjeta details{border-top:1px solid var(--linea); padding:9px 16px; font-size:14px; color:var(--muted)}
 .tarjeta summary{cursor:pointer; user-select:none}
 .tarjeta code{
-  display:block; margin-top:7px; font-family:var(--f-mono); font-size:11.5px;
+  display:block; margin-top:7px; font-family:var(--f-mono); font-size:13px;
   word-break:break-all; color:var(--texto); background:var(--panel2);
   padding:8px 10px; border-radius:6px;
 }
-.tarjeta-error{padding:18px 16px; color:var(--muted); font-size:14px}
+.tarjeta-error{padding:18px 16px; color:var(--muted); font-size:16px}
 .tarjeta-error button{
   margin-top:10px; background:var(--panel2); border:1px solid var(--linea);
   color:var(--texto); border-radius:8px; padding:6px 12px;
 }
-.cargando{padding:26px 16px; color:var(--muted); font-family:var(--f-mono); font-size:13px}
+.cargando{padding:26px 16px; color:var(--muted); font-family:var(--f-mono); font-size:15px}
 
 footer{
-  text-align:center; color:var(--muted); font-size:12px; padding:18px 0 28px;
+  text-align:center; color:var(--muted); font-size:14px; padding:18px 0 28px;
   border-top:1px solid var(--linea);
 }
 footer b{color:var(--texto)}
 
 @media (max-width:560px){
   header{padding:14px 16px}
-  .titulos h1{font-size:20px}
-  .logo{font-size:16px; letter-spacing:1px}
+  .titulos h1{font-size:23px}
+  .logo{font-size:18px; letter-spacing:1px}
   .buscador-zona, .tablero{padding:0 14px}
 }
 </style>
@@ -182,7 +207,7 @@ footer b{color:var(--texto)}
 <header>
   <div class="logo">CAVOK</div>
   <div class="titulos">
-    <h1>Meteo Aeronáutica Argentina</h1>
+    <h1>Meteo Aeronáutica Mundial</h1>
     <p>Condiciones en tiempo real vía METAR · CheckWX</p>
   </div>
   <div class="acciones">
@@ -203,7 +228,7 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v2</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
+  <b>CAVOK v3</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
   · Los reportes se actualizan cada 30–60 min · Caché horaria local
 </footer>
 
@@ -211,7 +236,7 @@ footer b{color:var(--texto)}
 'use strict';
 
 /* =====================================================
-   CAVOK v2 — Meteo aeronáutica (METAR) · Argentina + hubs mundiales
+   CAVOK v3 — Meteo aeronáutica mundial (METAR)
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -544,11 +569,30 @@ document.addEventListener('click', e => {
 ===================================================== */
 function pintarHistorial(){
   const $h = document.getElementById('historial');
-  $h.innerHTML = historial.map(h =>
-    `<button class="chip" data-icao="${esc(h.icao)}" data-ciudad="${esc(h.ciudad)}">${esc(h.ciudad)}</button>`
-  ).join('');
-  $h.querySelectorAll('.chip').forEach(btn =>
+  $h.innerHTML = historial.map(h => `
+    <span class="chip">
+      <button class="chip-nombre" data-icao="${esc(h.icao)}" data-ciudad="${esc(h.ciudad)}">${esc(h.ciudad)}</button>
+      <button class="chip-x" data-icao="${esc(h.icao)}" title="Borrar del historial" aria-label="Borrar ${esc(h.ciudad)} del historial">✕</button>
+    </span>`).join('')
+    + (historial.length ? '<button class="chip-limpiar" id="btnLimpiarHistorial">Limpiar historial</button>' : '');
+  $h.querySelectorAll('.chip-nombre').forEach(btn =>
     btn.addEventListener('click', () => agregarTarjeta(btn.dataset.icao, btn.dataset.ciudad)));
+  $h.querySelectorAll('.chip-x').forEach(btn =>
+    btn.addEventListener('click', () => borrarDelHistorial(btn.dataset.icao)));
+  const $limpiar = document.getElementById('btnLimpiarHistorial');
+  if ($limpiar) $limpiar.addEventListener('click', limpiarHistorial);
+}
+
+function borrarDelHistorial(icao){
+  historial = historial.filter(h => h.icao !== icao);
+  guardarLS('historial', historial);
+  pintarHistorial();
+}
+
+function limpiarHistorial(){
+  historial = [];
+  guardarLS('historial', historial);
+  pintarHistorial();
 }
 
 function registrarHistorial(icao, ciudad){
@@ -579,6 +623,13 @@ function quitarTarjeta(icao){
   pintarTablero();
 }
 
+function quitarTodos(){
+  if (!confirm('¿Quitar todos los aeropuertos del tablero?')) return;
+  tablero = [];
+  guardarLS('tablero', tablero);
+  pintarTablero();
+}
+
 function pintarTablero(){
   if (!tablero.length){
     $tablero.innerHTML = `
@@ -589,7 +640,12 @@ function pintarTablero(){
       </div>`;
     return;
   }
-  $tablero.innerHTML = tablero.map(t => `
+  const accionesHTML = tablero.length >= 2
+    ? `<div class="tablero-acciones">
+         <button class="btn-quitar-todos" onclick="quitarTodos()">Quitar todos los aeropuertos</button>
+       </div>`
+    : '';
+  $tablero.innerHTML = accionesHTML + tablero.map(t => `
     <article class="tarjeta" id="tarjeta-${esc(t.icao)}">
       <div class="tarjeta-cab">
         <span class="placa">${esc(t.icao)}</span>
