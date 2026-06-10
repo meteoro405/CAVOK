@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v4</title>
+<title>CAVOK · Meteo Aeronáutica v5</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,6 +53,7 @@ header{
   border:2px solid var(--placa-borde); border-radius:6px; padding:4px 12px;
 }
 .titulos h1{font-family:var(--f-display); font-weight:700; font-size:28px; letter-spacing:.5px; line-height:1.1}
+.byline{font-family:var(--f-mono); font-weight:400; font-size:13px; letter-spacing:1px; color:var(--amarillo); vertical-align:middle; margin-left:4px; white-space:nowrap}
 .titulos p{color:var(--muted); font-size:14px}
 header .acciones{margin-left:auto; display:flex; gap:8px; align-items:center}
 .btn-tema{
@@ -220,7 +221,7 @@ footer b{color:var(--texto)}
 <header>
   <div class="logo">CAVOK</div>
   <div class="titulos">
-    <h1>Meteo Aeronáutica Mundial</h1>
+    <h1>Meteo Aeronáutica Mundial <span class="byline">by Meteoro405</span></h1>
     <p>Condiciones en tiempo real vía METAR · CheckWX</p>
   </div>
   <div class="acciones">
@@ -241,7 +242,7 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v4</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
+  <b>CAVOK v5</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
   · Los reportes se actualizan cada 30–60 min · Caché horaria local
 </footer>
 
@@ -250,7 +251,7 @@ footer b{color:var(--texto)}
 'use strict';
 
 /* =====================================================
-   CAVOK v4 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v5 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -267,6 +268,9 @@ const REFRESCO_MIN = 30;             // auto-actualización (minutos)
 const AEROPUERTOS = [
   { ciudad:'Buenos Aires · Aeroparque', icao:'SABE', alias:['buenos aires','caba','capital','aeroparque','jorge newbery'] },
   { ciudad:'Buenos Aires · Ezeiza',     icao:'SAEZ', alias:['buenos aires','ezeiza','ministro pistarini'] },
+  { ciudad:'Buenos Aires · El Palomar', icao:'SADP', alias:['buenos aires','el palomar','palomar','hurlingham'] },
+  { ciudad:'Buenos Aires · Morón',      icao:'SADM', alias:['buenos aires','moron'] },
+  { ciudad:'Buenos Aires · San Fernando', icao:'SADF', alias:['buenos aires','san fernando'] },
   { ciudad:'Bahía Blanca',              icao:'SAZB', alias:['bahia blanca'] },
   { ciudad:'Bariloche',                 icao:'SAZS', alias:['san carlos de bariloche'] },
   { ciudad:'Catamarca',                 icao:'SANC', alias:['san fernando del valle'] },
