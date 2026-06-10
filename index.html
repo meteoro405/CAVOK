@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="es" data-tema="oscuro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAVOK · Meteo Aeronáutica v2</title>
+<meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --amarillo:#F5B941;          /* señalética de rodaje */
+  --vfr:#3FC97E; --mvfr:#EBB748; --ifr:#EF6363; --lifr:#EF6363;
+  --radio:12px;
+  --f-display:'Barlow Condensed', sans-serif;
+  --f-body:'Barlow', system-ui, sans-serif;
+  --f-mono:'JetBrains Mono', monospace;
+}
+[data-tema="oscuro"]{
+  --bg:#0C1220; --panel:#141C2E; --panel2:#1B2540;
+  --texto:#E9EEF7; --muted:#8A96AC; --linea:#26304A;
+  --placa-bg:#05070D; --placa-borde:#F5B941;
+  --sombra:0 6px 18px rgba(0,0,0,.35);
+}
+[data-tema="claro"]{
+  --bg:#EDF0F5; --panel:#FFFFFF; --panel2:#F2F4F9;
+  --texto:#1A2233; --muted:#5B6678; --linea:#D7DCE6;
+  --placa-bg:#10141F; --placa-borde:#E2A82B;
+  --sombra:0 4px 14px rgba(20,30,60,.12);
+}
+
+/* ============ BASE ============ */
+*{box-sizing:border-box; margin:0; padding:0}
+body{
+  background:var(--bg); color:var(--texto);
+  font-family:var(--f-body); font-size:15px; line-height:1.45;
+  min-height:100vh; transition:background .25s, color .25s;
+}
+button{font-family:inherit; cursor:pointer}
+:focus-visible{outline:2px solid var(--amarillo); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){ *{transition:none !important; animation:none !important} }
+
+/* ============ HEADER ============ */
+header{
+  display:flex; align-items:center; gap:14px;
+  padding:18px 22px; border-bottom:1px solid var(--linea);
+}
+.logo{
+  font-family:var(--f-mono); font-weight:600; font-size:20px; letter-spacing:2px;
+  background:var(--placa-bg); color:var(--amarillo);
+  border:2px solid var(--placa-borde); border-radius:6px; padding:4px 12px;
+}
+.titulos h1{font-family:var(--f-display); font-weight:700; font-size:24px; letter-spacing:.5px; line-height:1.1}
+.titulos p{color:var(--muted); font-size:12.5px}
+header .acciones{margin-left:auto; display:flex; gap:8px; align-items:center}
+.btn-tema{
+  background:var(--panel); border:1px solid var(--linea); color:var(--texto);
+  border-radius:8px; padding:7px 12px; font-size:14px;
+}
+.btn-tema:hover{border-color:var(--amarillo)}
+
+/* ============ BUSCADOR ============ */
+.buscador-zona{max-width:1100px; margin:26px auto 0; padding:0 22px}
+.buscador{position:relative}
+.buscador input{
+  width:100%; padding:14px 16px; font-size:16px; font-family:var(--f-body);
+  background:var(--panel); color:var(--texto);
+  border:1px solid var(--linea); border-radius:var(--radio);
+}
+.buscador input::placeholder{color:var(--muted)}
+.buscador input:focus{outline:2px solid var(--amarillo); outline-offset:0; border-color:transparent}
+.sugerencias{
+  position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:30;
+  background:var(--panel); border:1px solid var(--linea); border-radius:var(--radio);
+  box-shadow:var(--sombra); overflow:hidden; display:none;
+}
+.sugerencias.abierta{display:block}
+.sugerencia{
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  padding:11px 14px; background:none; border:none; color:var(--texto); font-size:15px;
+  border-bottom:1px solid var(--linea);
+}
+.sugerencia:last-child{border-bottom:none}
+.sugerencia:hover, .sugerencia.activa{background:var(--panel2)}
+.sugerencia .icao-mini{
+  font-family:var(--f-mono); font-size:12.5px; font-weight:600; letter-spacing:1px;
+  color:var(--amarillo); background:var(--placa-bg); border-radius:4px; padding:2px 7px;
+  min-width:54px; text-align:center;
+}
+.sugerencia .origen{margin-left:auto; font-size:11px; color:var(--muted)}
+.aviso-busqueda{padding:11px 14px; color:var(--muted); font-size:13.5px}
+
+/* ============ HISTORIAL ============ */
+.historial{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
+.historial .chip{
+  background:var(--panel); border:1px solid var(--linea); color:var(--muted);
+  border-radius:99px; padding:5px 13px; font-size:13px;
+}
+.historial .chip:hover{color:var(--texto); border-color:var(--amarillo)}
+
+/* ============ TABLERO ============ */
+.tablero{
+  max-width:1100px; margin:24px auto 60px; padding:0 22px;
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr)); gap:18px;
+}
+.vacio{
+  grid-column:1/-1; text-align:center; color:var(--muted);
+  padding:60px 20px; border:1px dashed var(--linea); border-radius:var(--radio);
+}
+.vacio b{color:var(--texto)}
+
+/* ============ TARJETA ============ */
+.tarjeta{
+  background:var(--panel); border:1px solid var(--linea); border-radius:var(--radio);
+  box-shadow:var(--sombra); overflow:hidden; display:flex; flex-direction:column;
+}
+.tarjeta-cab{display:flex; align-items:center; gap:12px; padding:14px 16px 10px}
+.placa{
+  font-family:var(--f-mono); font-weight:600; font-size:21px; letter-spacing:3px;
+  background:var(--placa-bg); color:var(--amarillo);
+  border:2px solid var(--placa-borde); border-radius:6px; padding:3px 10px 3px 13px;
+}
+.tarjeta-cab .ciudad{font-family:var(--f-display); font-weight:600; font-size:19px; line-height:1.15}
+.tarjeta-cab .observado{font-size:11.5px; color:var(--muted)}
+.tarjeta-cab .botones{margin-left:auto; display:flex; gap:4px}
+.btn-ico{
+  background:none; border:none; color:var(--muted); font-size:15px;
+  padding:4px 6px; border-radius:6px;
+}
+.btn-ico:hover{color:var(--texto); background:var(--panel2)}
+
+.banda{
+  display:flex; align-items:center; gap:8px;
+  margin:4px 16px 12px; padding:8px 12px; border-radius:8px;
+  font-weight:600; font-size:14px; color:#fff;
+}
+.banda .punto{width:10px; height:10px; border-radius:50%; background:#fff; flex:none;
+  animation:latido 2.4s ease-in-out infinite}
+@keyframes latido{0%,100%{opacity:1}50%{opacity:.35}}
+
+.metricas{
+  display:grid; grid-template-columns:1fr 1fr; gap:1px;
+  background:var(--linea); border-top:1px solid var(--linea);
+}
+.metrica{background:var(--panel); padding:10px 16px}
+.metrica .et{font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted)}
+.metrica .val{font-family:var(--f-mono); font-size:15.5px; margin-top:2px}
+.metrica.ancha{grid-column:1/-1}
+
+.tarjeta details{border-top:1px solid var(--linea); padding:9px 16px; font-size:12px; color:var(--muted)}
+.tarjeta summary{cursor:pointer; user-select:none}
+.tarjeta code{
+  display:block; margin-top:7px; font-family:var(--f-mono); font-size:11.5px;
+  word-break:break-all; color:var(--texto); background:var(--panel2);
+  padding:8px 10px; border-radius:6px;
+}
+.tarjeta-error{padding:18px 16px; color:var(--muted); font-size:14px}
+.tarjeta-error button{
+  margin-top:10px; background:var(--panel2); border:1px solid var(--linea);
+  color:var(--texto); border-radius:8px; padding:6px 12px;
+}
+.cargando{padding:26px 16px; color:var(--muted); font-family:var(--f-mono); font-size:13px}
+
+footer{
+  text-align:center; color:var(--muted); font-size:12px; padding:18px 0 28px;
+  border-top:1px solid var(--linea);
+}
+footer b{color:var(--texto)}
+
+@media (max-width:560px){
+  header{padding:14px 16px}
+  .titulos h1{font-size:20px}
+  .logo{font-size:16px; letter-spacing:1px}
+  .buscador-zona, .tablero{padding:0 14px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">CAVOK</div>
+  <div class="titulos">
+    <h1>Meteo Aeronáutica Argentina</h1>
+    <p>Condiciones en tiempo real vía METAR · CheckWX</p>
+  </div>
+  <div class="acciones">
+    <button class="btn-tema" id="btnTema" title="Cambiar tema">🌙</button>
+  </div>
+</header>
+
+<section class="buscador-zona">
+  <div class="buscador">
+    <input id="inputCiudad" type="text" autocomplete="off" spellcheck="false"
+           placeholder="Escribí una ciudad o código ICAO… (ej: Bariloche, SAZS)"
+           aria-label="Buscar ciudad o aeropuerto">
+    <div class="sugerencias" id="sugerencias" role="listbox"></div>
+  </div>
+  <div class="historial" id="historial"></div>
+</section>
+
+<main class="tablero" id="tablero"></main>
+
+<footer>
+  <b>CAVOK v2</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
+  · Los reportes se actualizan cada 30–60 min · Caché horaria local
+</footer>
+
+<script>
+'use strict';
+
+/* =====================================================
+   CAVOK v2 — Meteo aeronáutica (METAR) · Argentina + hubs mundiales
+   HTML/CSS/JS puro, sin frameworks.
+   API: CheckWX v2 (2.000 req/día gratis)
+===================================================== */
+
+const API_KEY = '27d70fc182ef4d169f9f202a8762a17b';
+const API_BASE = 'https://api.checkwx.com/v2';
+const PREFIJO = 'cavok_';            // claves localStorage de la app
+const REFRESCO_MIN = 30;             // auto-actualización (minutos)
+
+/* ---------- Tabla local ciudad → ICAO ----------
+   ⚠ Corregidos respecto al doc original:
+   Formosa SARF · Resistencia SARE · Santa Rosa SAZR
+   Esquel SAVE · San Luis SAOU · Puerto Madryn SAVY  */
+const AEROPUERTOS = [
+  { ciudad:'Buenos Aires · Aeroparque', icao:'SABE', alias:['buenos aires','caba','capital','aeroparque','jorge newbery'] },
+  { ciudad:'Buenos Aires · Ezeiza',     icao:'SAEZ', alias:['buenos aires','ezeiza','ministro pistarini'] },
+  { ciudad:'Bahía Blanca',              icao:'SAZB', alias:['bahia blanca'] },
+  { ciudad:'Bariloche',                 icao:'SAZS', alias:['san carlos de bariloche'] },
+  { ciudad:'Catamarca',                 icao:'SANC', alias:['san fernando del valle'] },
+  { ciudad:'Comodoro Rivadavia',        icao:'SAVC', alias:[] },
+  { ciudad:'Córdoba',                   icao:'SACO', alias:['cordoba','pajas blancas'] },
+  { ciudad:'Corrientes',                icao:'SARC', alias:[] },
+  { ciudad:'El Calafate',               icao:'SAWC', alias:['calafate'] },
+  { ciudad:'Esquel',                    icao:'SAVE', alias:[] },
+  { ciudad:'Formosa',                   icao:'SARF', alias:[] },
+  { ciudad:'La Rioja',                  icao:'SANL', alias:[] },
+  { ciudad:'Mar del Plata',             icao:'SAZM', alias:['mardel'] },
+  { ciudad:'Mendoza',                   icao:'SAME', alias:['el plumerillo'] },
+  { ciudad:'Neuquén',                   icao:'SAZN', alias:['neuquen'] },
+  { ciudad:'Posadas',                   icao:'SARP', alias:[] },
+  { ciudad:'Puerto Iguazú',             icao:'SARI', alias:['iguazu','cataratas'] },
+  { ciudad:'Puerto Madryn',             icao:'SAVY', alias:['madryn'] },
+  { ciudad:'Resistencia',               icao:'SARE', alias:[] },
+  { ciudad:'Río Cuarto',                icao:'SAOC', alias:['rio cuarto'] },
+  { ciudad:'Río Gallegos',              icao:'SAWG', alias:['rio gallegos'] },
+  { ciudad:'Rosario',                   icao:'SAAR', alias:[] },
+  { ciudad:'Salta',                     icao:'SASA', alias:[] },
+  { ciudad:'San Juan',                  icao:'SANU', alias:[] },
+  { ciudad:'San Luis',                  icao:'SAOU', alias:[] },
+  { ciudad:'San Martín de los Andes',   icao:'SAZY', alias:['chapelco','san martin de los andes'] },
+  { ciudad:'San Salvador de Jujuy',     icao:'SASJ', alias:['jujuy'] },
+  { ciudad:'Santa Fe',                  icao:'SAAV', alias:['sauce viejo'] },
+  { ciudad:'Santa Rosa (La Pampa)',     icao:'SAZR', alias:['santa rosa','la pampa'] },
+  { ciudad:'Santiago del Estero',       icao:'SANE', alias:[] },
+  { ciudad:'Trelew / Rawson',           icao:'SAVT', alias:['trelew','rawson'] },
+  { ciudad:'Tucumán',                   icao:'SANT', alias:['tucuman','san miguel de tucuman'] },
+  { ciudad:'Ushuaia',                   icao:'SAWH', alias:[] },
+  { ciudad:'Viedma',                    icao:'SAVV', alias:[] },
+
+  /* ---- Sudamérica ---- */
+  { ciudad:'Santiago de Chile (CL)',    icao:'SCEL', alias:['santiago','chile','pudahuel','merino benitez'] },
+  { ciudad:'Antofagasta (CL)',          icao:'SCFA', alias:[] },
+  { ciudad:'Calama (CL)',               icao:'SCCF', alias:['san pedro de atacama'] },
+  { ciudad:'Iquique (CL)',              icao:'SCDA', alias:[] },
+  { ciudad:'La Serena (CL)',            icao:'SCSE', alias:[] },
+  { ciudad:'Concepción (CL)',           icao:'SCIE', alias:['concepcion'] },
+  { ciudad:'Puerto Montt (CL)',         icao:'SCTE', alias:[] },
+  { ciudad:'Balmaceda / Coyhaique (CL)',icao:'SCBA', alias:['coyhaique','balmaceda'] },
+  { ciudad:'Punta Arenas (CL)',         icao:'SCCI', alias:[] },
+  { ciudad:'Montevideo (UY)',           icao:'SUMU', alias:['carrasco','uruguay'] },
+  { ciudad:'Punta del Este (UY)',       icao:'SULS', alias:['laguna del sauce'] },
+  { ciudad:'Asunción (PY)',             icao:'SGAS', alias:['asuncion','paraguay'] },
+  { ciudad:'La Paz (BO)',               icao:'SLLP', alias:['el alto','bolivia'] },
+  { ciudad:'Santa Cruz de la Sierra (BO)', icao:'SLVR', alias:['viru viru'] },
+  { ciudad:'Lima (PE)',                 icao:'SPJC', alias:['jorge chavez','peru','spim'] },
+  { ciudad:'Cusco (PE)',                icao:'SPZO', alias:['cuzco','machu picchu'] },
+  { ciudad:'Bogotá (CO)',               icao:'SKBO', alias:['bogota','el dorado','colombia'] },
+  { ciudad:'Medellín (CO)',             icao:'SKRG', alias:['medellin','rionegro'] },
+  { ciudad:'Cartagena (CO)',            icao:'SKCG', alias:[] },
+  { ciudad:'Quito (EC)',                icao:'SEQM', alias:['ecuador','mariscal sucre'] },
+  { ciudad:'Guayaquil (EC)',            icao:'SEGU', alias:[] },
+  { ciudad:'Caracas (VE)',              icao:'SVMI', alias:['maiquetia','venezuela'] },
+  { ciudad:'São Paulo · Guarulhos (BR)',icao:'SBGR', alias:['sao paulo','san pablo','brasil'] },
+  { ciudad:'São Paulo · Congonhas (BR)',icao:'SBSP', alias:['sao paulo','congonhas'] },
+  { ciudad:'Río de Janeiro · Galeão (BR)', icao:'SBGL', alias:['rio de janeiro','galeao'] },
+  { ciudad:'Río de Janeiro · Santos Dumont (BR)', icao:'SBRJ', alias:['rio de janeiro','santos dumont'] },
+  { ciudad:'Brasilia (BR)',             icao:'SBBR', alias:[] },
+  { ciudad:'Florianópolis (BR)',        icao:'SBFL', alias:['florianopolis','floripa'] },
+  { ciudad:'Porto Alegre (BR)',         icao:'SBPA', alias:[] },
+  { ciudad:'Curitiba (BR)',             icao:'SBCT', alias:[] },
+  { ciudad:'Foz do Iguaçu (BR)',        icao:'SBFI', alias:['foz de iguazu'] },
+
+  /* ---- Norteamérica ---- */
+  { ciudad:'Nueva York · JFK (US)',     icao:'KJFK', alias:['new york','nueva york'] },
+  { ciudad:'Nueva York · Newark (US)',  icao:'KEWR', alias:['new york','newark'] },
+  { ciudad:'Nueva York · LaGuardia (US)', icao:'KLGA', alias:['new york','laguardia'] },
+  { ciudad:'Miami (US)',                icao:'KMIA', alias:[] },
+  { ciudad:'Orlando (US)',              icao:'KMCO', alias:['disney'] },
+  { ciudad:'Los Ángeles (US)',          icao:'KLAX', alias:['los angeles'] },
+  { ciudad:'San Francisco (US)',        icao:'KSFO', alias:[] },
+  { ciudad:'Las Vegas (US)',            icao:'KLAS', alias:[] },
+  { ciudad:'Chicago · O\'Hare (US)',    icao:'KORD', alias:['ohare'] },
+  { ciudad:'Atlanta (US)',              icao:'KATL', alias:[] },
+  { ciudad:'Dallas (US)',               icao:'KDFW', alias:['fort worth'] },
+  { ciudad:'Houston (US)',              icao:'KIAH', alias:[] },
+  { ciudad:'Washington · Dulles (US)',  icao:'KIAD', alias:[] },
+  { ciudad:'Boston (US)',               icao:'KBOS', alias:[] },
+  { ciudad:'Seattle (US)',              icao:'KSEA', alias:[] },
+  { ciudad:'Denver (US)',               icao:'KDEN', alias:[] },
+  { ciudad:'Toronto (CA)',              icao:'CYYZ', alias:['pearson','canada'] },
+  { ciudad:'Vancouver (CA)',            icao:'CYVR', alias:[] },
+  { ciudad:'Montreal (CA)',             icao:'CYUL', alias:[] },
+  { ciudad:'Ciudad de México (MX)',     icao:'MMMX', alias:['mexico','cdmx','benito juarez'] },
+  { ciudad:'Cancún (MX)',               icao:'MMUN', alias:['cancun'] },
+
+  /* ---- Europa ---- */
+  { ciudad:'Madrid · Barajas (ES)',     icao:'LEMD', alias:['espana','españa','barajas'] },
+  { ciudad:'Barcelona (ES)',            icao:'LEBL', alias:['el prat'] },
+  { ciudad:'Lisboa (PT)',               icao:'LPPT', alias:['portugal'] },
+  { ciudad:'París · Charles de Gaulle (FR)', icao:'LFPG', alias:['paris','francia'] },
+  { ciudad:'París · Orly (FR)',         icao:'LFPO', alias:['paris','orly'] },
+  { ciudad:'Londres · Heathrow (GB)',   icao:'EGLL', alias:['london','londres','inglaterra'] },
+  { ciudad:'Londres · Gatwick (GB)',    icao:'EGKK', alias:['london','gatwick'] },
+  { ciudad:'Roma · Fiumicino (IT)',     icao:'LIRF', alias:['roma','italia'] },
+  { ciudad:'Milán · Malpensa (IT)',     icao:'LIMC', alias:['milan'] },
+  { ciudad:'Frankfurt (DE)',            icao:'EDDF', alias:['alemania'] },
+  { ciudad:'Múnich (DE)',               icao:'EDDM', alias:['munich','munchen'] },
+  { ciudad:'Ámsterdam (NL)',            icao:'EHAM', alias:['amsterdam','schiphol','holanda'] },
+  { ciudad:'Zúrich (CH)',               icao:'LSZH', alias:['zurich','suiza'] },
+  { ciudad:'Ginebra (CH)',              icao:'LSGG', alias:['geneva'] },
+  { ciudad:'Viena (AT)',                icao:'LOWW', alias:['austria'] },
+  { ciudad:'Estambul (TR)',             icao:'LTFM', alias:['istanbul','turquia'] },
+  { ciudad:'Atenas (GR)',               icao:'LGAV', alias:['grecia'] },
+  { ciudad:'Dublín (IE)',               icao:'EIDW', alias:['dublin','irlanda'] },
+  { ciudad:'Copenhague (DK)',           icao:'EKCH', alias:['dinamarca'] },
+  { ciudad:'Estocolmo (SE)',            icao:'ESSA', alias:['arlanda','suecia'] },
+  { ciudad:'Oslo (NO)',                 icao:'ENGM', alias:['noruega'] },
+
+  /* ---- Medio Oriente · Asia · Oceanía · África ---- */
+  { ciudad:'Dubái (AE)',                icao:'OMDB', alias:['dubai','emiratos'] },
+  { ciudad:'Abu Dabi (AE)',             icao:'OMAA', alias:['abu dhabi'] },
+  { ciudad:'Doha (QA)',                 icao:'OTHH', alias:['qatar','catar'] },
+  { ciudad:'Tel Aviv (IL)',             icao:'LLBG', alias:['israel','ben gurion'] },
+  { ciudad:'Tokio · Narita (JP)',       icao:'RJAA', alias:['tokyo','tokio','japon'] },
+  { ciudad:'Tokio · Haneda (JP)',       icao:'RJTT', alias:['tokyo','haneda'] },
+  { ciudad:'Seúl · Incheon (KR)',       icao:'RKSI', alias:['seul','seoul','corea'] },
+  { ciudad:'Pekín (CN)',                icao:'ZBAA', alias:['beijing','pekin','china'] },
+  { ciudad:'Shanghái · Pudong (CN)',    icao:'ZSPD', alias:['shanghai'] },
+  { ciudad:'Hong Kong (HK)',            icao:'VHHH', alias:[] },
+  { ciudad:'Singapur (SG)',             icao:'WSSS', alias:['singapore','changi'] },
+  { ciudad:'Bangkok (TH)',              icao:'VTBS', alias:['tailandia','suvarnabhumi'] },
+  { ciudad:'Nueva Delhi (IN)',          icao:'VIDP', alias:['delhi','india'] },
+  { ciudad:'Bombay (IN)',               icao:'VABB', alias:['mumbai'] },
+  { ciudad:'Sídney (AU)',               icao:'YSSY', alias:['sydney','sidney','australia'] },
+  { ciudad:'Melbourne (AU)',            icao:'YMML', alias:[] },
+  { ciudad:'Auckland (NZ)',             icao:'NZAA', alias:['nueva zelanda'] },
+  { ciudad:'Johannesburgo (ZA)',        icao:'FAOR', alias:['johannesburg','sudafrica'] },
+  { ciudad:'El Cairo (EG)',             icao:'HECA', alias:['cairo','egipto'] },
+  { ciudad:'Casablanca (MA)',           icao:'GMMN', alias:['marruecos'] }
+];
+
+/* ---------- Semáforo flight_category ---------- */
+const CAT_COLOR = { VFR:'var(--vfr)', MVFR:'var(--mvfr)', IFR:'var(--ifr)', LIFR:'var(--lifr)' };
+const CAT_LABEL = {
+  VFR :'VFR · Condiciones visuales',
+  MVFR:'MVFR · VFR marginal',
+  IFR :'IFR · Vuelo por instrumentos',
+  LIFR:'LIFR · Condiciones muy bajas'
+};
+const CLOUD_TEXT = { SKC:'Despejado', CLR:'Despejado', NSC:'Sin nubes significativas', NCD:'Sin nubes detectadas',
+                     FEW:'Pocas nubes', SCT:'Nubes dispersas', BKN:'Mayormente nublado', OVC:'Cubierto',
+                     VV:'Cielo invisible' };
+
+/* ---------- Estado ---------- */
+let tablero   = leerLS('tablero', []);     // [{icao, ciudad}]
+let historial = leerLS('historial', []);   // [{icao, ciudad}]
+let sugActiva = -1;
+
+/* ---------- Utilidades ---------- */
+function leerLS(clave, def){
+  try { return JSON.parse(localStorage.getItem(PREFIJO + clave)) ?? def; }
+  catch(e){ return def; }
+}
+function guardarLS(clave, val){
+  try { localStorage.setItem(PREFIJO + clave, JSON.stringify(val)); } catch(e){}
+}
+function norm(s){
+  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function claveCacheHora(icao){
+  const a = new Date();
+  return `metar_${icao}_${a.getFullYear()}-${String(a.getMonth()+1).padStart(2,'0')}-${String(a.getDate()).padStart(2,'0')}T${String(a.getHours()).padStart(2,'0')}`;
+}
+function haceCuanto(iso){
+  if (!iso) return '';
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (isNaN(min) || min < 0) return '';
+  if (min < 1)  return 'recién';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  return `hace ${h} h ${min % 60} min`;
+}
+
+/* =====================================================
+   API — METAR (módulo probado, con caché por hora)
+===================================================== */
+async function loadMetar(icao, forzar = false){
+  const cacheKey = claveCacheHora(icao);
+  if (forzar) sessionStorage.removeItem(cacheKey);
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  try {
+    const res = await fetch(`${API_BASE}/metar/${icao}/decoded`, {
+      headers: { 'X-API-Key': API_KEY }
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const data = json?.data?.[0];
+    if (!data) return null;
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(data)); } catch(e){}
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+/* API — búsqueda de estaciones (fallback ciudad→ICAO) */
+async function buscarEstacionesAPI(texto){
+  try {
+    const res = await fetch(`${API_BASE}/station/search/${encodeURIComponent(texto)}`, {
+      headers: { 'X-API-Key': API_KEY }
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json?.data || [])
+      .filter(e => e.icao)
+      .slice(0, 6)
+      .map(e => ({
+        icao: e.icao,
+        ciudad: [e.city || e.name, e.country?.name].filter(Boolean).join(', ')
+      }));
+  } catch(e) {
+    return [];
+  }
+}
+
+/* =====================================================
+   BUSCADOR + SUGERENCIAS
+===================================================== */
+const $input = document.getElementById('inputCiudad');
+const $sug   = document.getElementById('sugerencias');
+let timerAPI = null;
+
+function buscarLocal(q){
+  const n = norm(q);
+  if (!n) return [];
+  return AEROPUERTOS.filter(a =>
+    norm(a.ciudad).includes(n) ||
+    a.icao.toLowerCase().includes(n) ||
+    a.alias.some(al => norm(al).includes(n))
+  ).slice(0, 8);
+}
+
+function pintarSugerencias(items, origen){
+  sugActiva = -1;
+  if (!items.length){
+    $sug.innerHTML = origen === 'api'
+      ? '<div class="aviso-busqueda">Sin resultados. Probá con otro nombre o un código ICAO.</div>'
+      : '<div class="aviso-busqueda">No está en la tabla local… buscando en CheckWX ⏳</div>';
+    $sug.classList.add('abierta');
+    return;
+  }
+  $sug.innerHTML = items.map((a, i) => `
+    <button class="sugerencia" role="option" data-i="${i}" data-icao="${esc(a.icao)}" data-ciudad="${esc(a.ciudad)}">
+      <span class="icao-mini">${esc(a.icao)}</span>
+      <span>${esc(a.ciudad)}</span>
+      ${origen === 'api' ? '<span class="origen">CheckWX</span>' : ''}
+    </button>`).join('');
+  $sug.classList.add('abierta');
+  $sug.querySelectorAll('.sugerencia').forEach(btn => {
+    btn.addEventListener('click', () =>
+      agregarTarjeta(btn.dataset.icao, btn.dataset.ciudad));
+  });
+}
+
+function cerrarSugerencias(){
+  $sug.classList.remove('abierta');
+  $sug.innerHTML = '';
+  sugActiva = -1;
+}
+
+$input.addEventListener('input', () => {
+  clearTimeout(timerAPI);
+  const q = $input.value;
+  if (norm(q).length < 2){ cerrarSugerencias(); return; }
+
+  const locales = buscarLocal(q);
+  if (locales.length){
+    pintarSugerencias(locales, 'local');
+  } else {
+    pintarSugerencias([], 'local');           // aviso "buscando…"
+    timerAPI = setTimeout(async () => {
+      const remotos = await buscarEstacionesAPI(q);
+      if (norm($input.value) === norm(q))      // sigue siendo la misma búsqueda
+        pintarSugerencias(remotos, 'api');
+    }, 500);
+  }
+});
+
+$input.addEventListener('keydown', e => {
+  const items = [...$sug.querySelectorAll('.sugerencia')];
+  if (!items.length){
+    if (e.key === 'Escape') cerrarSugerencias();
+    return;
+  }
+  if (e.key === 'ArrowDown'){ e.preventDefault(); sugActiva = (sugActiva + 1) % items.length; }
+  else if (e.key === 'ArrowUp'){ e.preventDefault(); sugActiva = (sugActiva - 1 + items.length) % items.length; }
+  else if (e.key === 'Enter'){
+    e.preventDefault();
+    const sel = items[sugActiva >= 0 ? sugActiva : 0];
+    agregarTarjeta(sel.dataset.icao, sel.dataset.ciudad);
+    return;
+  }
+  else if (e.key === 'Escape'){ cerrarSugerencias(); return; }
+  else return;
+  items.forEach((b, i) => b.classList.toggle('activa', i === sugActiva));
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.buscador')) cerrarSugerencias();
+});
+
+/* =====================================================
+   HISTORIAL (últimas búsquedas)
+===================================================== */
+function pintarHistorial(){
+  const $h = document.getElementById('historial');
+  $h.innerHTML = historial.map(h =>
+    `<button class="chip" data-icao="${esc(h.icao)}" data-ciudad="${esc(h.ciudad)}">${esc(h.ciudad)}</button>`
+  ).join('');
+  $h.querySelectorAll('.chip').forEach(btn =>
+    btn.addEventListener('click', () => agregarTarjeta(btn.dataset.icao, btn.dataset.ciudad)));
+}
+
+function registrarHistorial(icao, ciudad){
+  historial = [{icao, ciudad}, ...historial.filter(h => h.icao !== icao)].slice(0, 8);
+  guardarLS('historial', historial);
+  pintarHistorial();
+}
+
+/* =====================================================
+   TABLERO DE TARJETAS (comparador)
+===================================================== */
+const $tablero = document.getElementById('tablero');
+
+function agregarTarjeta(icao, ciudad){
+  cerrarSugerencias();
+  $input.value = '';
+  registrarHistorial(icao, ciudad);
+  if (!tablero.some(t => t.icao === icao)){
+    tablero.unshift({icao, ciudad});
+    guardarLS('tablero', tablero);
+  }
+  pintarTablero();
+}
+
+function quitarTarjeta(icao){
+  tablero = tablero.filter(t => t.icao !== icao);
+  guardarLS('tablero', tablero);
+  pintarTablero();
+}
+
+function pintarTablero(){
+  if (!tablero.length){
+    $tablero.innerHTML = `
+      <div class="vacio">
+        <p><b>Tablero vacío.</b></p>
+        <p>Buscá una ciudad argentina o un código ICAO para ver sus condiciones.</p>
+        <p style="margin-top:8px">Podés agregar varios aeropuertos y compararlos.</p>
+      </div>`;
+    return;
+  }
+  $tablero.innerHTML = tablero.map(t => `
+    <article class="tarjeta" id="tarjeta-${esc(t.icao)}">
+      <div class="tarjeta-cab">
+        <span class="placa">${esc(t.icao)}</span>
+        <div>
+          <div class="ciudad">${esc(t.ciudad)}</div>
+          <div class="observado" id="obs-${esc(t.icao)}"></div>
+        </div>
+        <div class="botones">
+          <button class="btn-ico" title="Actualizar" onclick="refrescar('${esc(t.icao)}')">⟳</button>
+          <button class="btn-ico" title="Quitar" onclick="quitarTarjeta('${esc(t.icao)}')">✕</button>
+        </div>
+      </div>
+      <div id="cuerpo-${esc(t.icao)}" class="cargando">Consultando METAR…</div>
+    </article>`).join('');
+  tablero.forEach(t => cargarTarjeta(t.icao));
+}
+
+async function cargarTarjeta(icao, forzar = false){
+  const $cuerpo = document.getElementById(`cuerpo-${icao}`);
+  const $obs    = document.getElementById(`obs-${icao}`);
+  if (!$cuerpo) return;
+  $cuerpo.className = 'cargando';
+  $cuerpo.textContent = 'Consultando METAR…';
+
+  const data = await loadMetar(icao, forzar);
+  if (!document.getElementById(`cuerpo-${icao}`)) return;   // tarjeta quitada mientras cargaba
+
+  if (!data){
+    $cuerpo.className = 'tarjeta-error';
+    $cuerpo.innerHTML = `Sin datos METAR disponibles para <b>${esc(icao)}</b>.<br>
+      La estación puede no reportar en este horario.
+      <br><button onclick="refrescar('${esc(icao)}')">Reintentar</button>`;
+    if ($obs) $obs.textContent = '';
+    return;
+  }
+
+  /* --- métricas --- */
+  const temp = data.temperature?.celsius != null ? `${data.temperature.celsius}°C` : '—';
+  const hum  = data.humidity?.percent   != null ? `${data.humidity.percent}%`     : '—';
+
+  let viento = '—';
+  if (data.wind){
+    const vel = data.wind.speed_kts != null ? `${data.wind.speed_kts} kt` : '';
+    const dir = data.wind.direction || (data.wind.degrees != null ? `${data.wind.degrees}°` : '');
+    viento = [vel, dir].filter(Boolean).join(' · ') || '—';
+  } else if (data.raw_text && data.raw_text.includes('00000KT')){
+    viento = 'Calmo';
+  }
+
+  let vis = '—';
+  if (data.visibility?.meters != null){
+    const m = parseFloat(String(data.visibility.meters).replace(/[^\d.]/g, ''));
+    if (!isNaN(m)) vis = m >= 9999 ? '+10 km' : `${(m/1000).toLocaleString('es-AR',{maximumFractionDigits:1})} km`;
+  }
+
+  let nubes = '—';
+  if (data.clouds?.length){
+    nubes = data.clouds.map(c => {
+      const txt = CLOUD_TEXT[c.code] || c.text || c.code;
+      return c.base_feet_agl ? `${txt} (${c.base_feet_agl.toLocaleString('es-AR')} ft)` : txt;
+    }).join(' · ');
+  }
+
+  const presion = data.barometer?.hpa != null ? `${data.barometer.hpa} hPa` : '—';
+
+  const cat   = data.flight_category || '—';
+  const color = CAT_COLOR[cat] || 'var(--muted)';
+  const label = CAT_LABEL[cat] || cat;
+
+  $cuerpo.className = '';
+  $cuerpo.innerHTML = `
+    <div class="banda" style="background:${color}">
+      <span class="punto"></span> ${esc(label)}
+    </div>
+    <div class="metricas">
+      <div class="metrica"><div class="et">🌡 Temperatura</div><div class="val">${esc(temp)}</div></div>
+      <div class="metrica"><div class="et">💧 Humedad</div><div class="val">${esc(hum)}</div></div>
+      <div class="metrica"><div class="et">💨 Viento</div><div class="val">${esc(viento)}</div></div>
+      <div class="metrica"><div class="et">👁 Visibilidad</div><div class="val">${esc(vis)}</div></div>
+      <div class="metrica ancha"><div class="et">☁️ Nubes</div><div class="val">${esc(nubes)}</div></div>
+      <div class="metrica ancha"><div class="et">🔵 Presión</div><div class="val">${esc(presion)}</div></div>
+    </div>
+    <details>
+      <summary>METAR crudo</summary>
+      <code>${esc(data.raw_text || '—')}</code>
+    </details>`;
+
+  if ($obs) $obs.textContent = data.observed
+    ? `Reporte ${haceCuanto(data.observed)}`
+    : '';
+}
+
+function refrescar(icao){ cargarTarjeta(icao, true); }
+
+/* =====================================================
+   TEMA CLARO / OSCURO
+===================================================== */
+const $btnTema = document.getElementById('btnTema');
+function aplicarTema(t){
+  document.documentElement.dataset.tema = t;
+  $btnTema.textContent = t === 'oscuro' ? '☀️' : '🌙';
+  guardarLS('tema', t);
+}
+$btnTema.addEventListener('click', () =>
+  aplicarTema(document.documentElement.dataset.tema === 'oscuro' ? 'claro' : 'oscuro'));
+
+/* =====================================================
+   INICIO + AUTO-REFRESCO
+===================================================== */
+aplicarTema(leerLS('tema', 'oscuro'));
+pintarHistorial();
+pintarTablero();
+setInterval(() => tablero.forEach(t => cargarTarjeta(t.icao)), REFRESCO_MIN * 60 * 1000);
+</script>
+</body>
+</html>
