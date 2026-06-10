@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v7</title>
+<title>CAVOK · Meteo Aeronáutica v8</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -44,23 +44,19 @@ button{font-family:inherit; cursor:pointer}
 
 /* ============ HEADER ============ */
 header{
-  display:flex; align-items:center; gap:14px;
-  padding:18px 22px; border-bottom:1px solid var(--linea);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 22px; border-bottom:1px solid var(--linea);
 }
-.logo-old-unused{
-  font-family:var(--f-mono); font-weight:600; font-size:23px; letter-spacing:2px;
-  background:var(--placa-bg); color:var(--amarillo);
-  border:2px solid var(--placa-borde); border-radius:6px; padding:4px 12px;
-}
-.logo-tag{height:72px; width:auto; display:block; flex:none}
-.titulos h1{font-family:var(--f-display); font-weight:700; font-size:28px; letter-spacing:.5px; line-height:1.1}
-
-.titulos p{color:var(--muted); font-size:14px}
-header .acciones{margin-left:auto; display:flex; gap:8px; align-items:center}
+.bloque-logo{display:flex; flex-direction:column; align-items:flex-start; gap:7px}
+.logo-tag{display:block; width:170px; height:auto; flex:none}
+.titulos h1{font-family:var(--f-display); font-weight:700; font-size:22px; letter-spacing:.5px; line-height:1.1}
+.titulos p{color:var(--muted); font-size:13px; margin-top:1px}
+header .acciones{display:flex; gap:8px; align-items:center; flex:none}
 .btn-tema{
   background:var(--panel); border:1px solid var(--linea); color:var(--texto);
   border-radius:8px; padding:7px 12px; font-size:16px;
 }
+.btn-tema:hover{border-color:var(--amarillo)}
 .btn-tema:hover{border-color:var(--amarillo)}
 
 /* ============ BUSCADOR ============ */
@@ -211,32 +207,32 @@ footer b{color:var(--texto)}
 
 @media (max-width:560px){
   header{padding:14px 16px}
-  .logo-tag{height:72px; width:auto; display:block; flex:none}
-.titulos h1{font-size:23px}
-  .logo-old-unused{font-size:18px; letter-spacing:1px}
-  .buscador-zona, .tablero{padding:0 14px}
+  .titulos h1{font-size:23px}
+    .buscador-zona, .tablero{padding:0 14px}
 }
 </style>
 </head>
 <body>
 
 <header>
-  <svg class="logo-tag" viewBox="0 0 210 82" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logo CAVOK">
+  <div class="bloque-logo">
+    <svg class="logo-tag" viewBox="0 0 200 52" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logo CAVOK">
   <title>CAVOK</title>
-  <rect x="28" y="5" width="177" height="72" rx="7" fill="var(--amarillo)"/>
-  <rect x="28" y="5" width="177" height="22" rx="7" fill="var(--placa-bg)"/>
-  <rect x="28" y="18" width="177" height="9" fill="var(--placa-bg)"/>
-  <text x="117" y="17" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="600" font-size="6.5" fill="var(--amarillo)" letter-spacing="2">METEO AERONÁUTICA MUNDIAL</text>
-  <circle cx="42" cy="48" r="7" fill="var(--placa-bg)"/>
-  <circle cx="42" cy="48" r="4" fill="var(--amarillo)"/>
-  <path d="M35 48 Q20 36 12 26" stroke="var(--muted)" stroke-width="1.2" fill="none" stroke-dasharray="2.5 2"/>
-  <path d="M35 48 Q18 60 11 70" stroke="var(--muted)" stroke-width="1.2" fill="none" stroke-dasharray="2.5 2"/>
-  <text x="123" y="52" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="700" font-size="28" fill="var(--placa-bg)" letter-spacing="3">CAVOK</text>
-  <text x="123" y="66" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="600" font-size="8.5" fill="var(--placa-bg)" letter-spacing="1.5" opacity="0.75">by Meteoro405</text>
+  <rect x="18" y="2" width="180" height="48" rx="6" fill="var(--amarillo)"/>
+  <rect x="18" y="2" width="180" height="16" rx="6" fill="var(--placa-bg)"/>
+  <rect x="18" y="10" width="180" height="8" fill="var(--placa-bg)"/>
+  <text x="108" y="12" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="600" font-size="5.5" fill="var(--amarillo)" letter-spacing="2">METEO AERONÁUTICA MUNDIAL</text>
+  <circle cx="31" cy="26" r="6" fill="var(--placa-bg)"/>
+  <circle cx="31" cy="26" r="3.5" fill="var(--amarillo)"/>
+  <path d="M25 26 Q14 19 8 12" stroke="var(--muted)" stroke-width="1" fill="none" stroke-dasharray="2 1.5"/>
+  <path d="M25 26 Q13 33 7 40" stroke="var(--muted)" stroke-width="1" fill="none" stroke-dasharray="2 1.5"/>
+  <text x="110" y="33" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="700" font-size="20" fill="var(--placa-bg)" letter-spacing="3">CAVOK</text>
+  <text x="110" y="44" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="600" font-size="7" fill="var(--placa-bg)" letter-spacing="1.5" opacity="0.72">by Meteoro405</text>
 </svg>
-  <div class="titulos">
-    <h1>Meteo Aeronáutica Mundial</h1>
-    <p>Condiciones en tiempo real · by Meteoro405</p>
+    <div class="titulos">
+      <h1>Meteo Aeronáutica Mundial</h1>
+      <p>Condiciones en tiempo real · by Meteoro405</p>
+    </div>
   </div>
   <div class="acciones">
     <button class="btn-tema" id="btnTema" title="Cambiar tema">🌙</button>
@@ -256,7 +252,7 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v7</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
+  <b>CAVOK v8</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
   · Los reportes se actualizan cada 30–60 min · Caché horaria local
 </footer>
 
@@ -265,7 +261,7 @@ footer b{color:var(--texto)}
 'use strict';
 
 /* =====================================================
-   CAVOK v7 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v8 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
