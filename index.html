@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v11</title>
+<title>CAVOK · Meteo Aeronáutica v13</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -224,6 +224,7 @@ header .acciones{display:flex; gap:8px; align-items:center; flex:none}
 .pistas-lista{font-family:var(--f-mono); font-size:12px; color:var(--texto); padding:2px 0 6px}
 .pistas-lista div{padding:2px 0}
 .pistas-fuente{font-size:10.5px; color:var(--muted)}
+.techo{font-size:12px; color:var(--muted); font-style:italic}
 .tarjeta code{
   display:block; margin-top:7px; font-family:var(--f-mono); font-size:13px;
   word-break:break-all; color:var(--texto); background:var(--panel2);
@@ -253,18 +254,15 @@ footer b{color:var(--texto)}
 
 <header>
   <div class="bloque-logo">
-    <svg class="logo-tag" viewBox="0 0 200 52" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logo CAVOK">
+    <svg class="logo-tag" viewBox="0 0 200 36" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logo CAVOK">
   <title>CAVOK</title>
-  <rect x="18" y="2" width="180" height="48" rx="6" fill="var(--amarillo)"/>
-  <rect x="18" y="2" width="180" height="16" rx="6" fill="var(--placa-bg)"/>
-  <rect x="18" y="10" width="180" height="8" fill="var(--placa-bg)"/>
-  <text x="108" y="12" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="600" font-size="5.5" fill="var(--amarillo)" letter-spacing="2">METEO AERONÁUTICA MUNDIAL</text>
-  <circle cx="31" cy="26" r="6" fill="var(--placa-bg)"/>
-  <circle cx="31" cy="26" r="3.5" fill="var(--amarillo)"/>
-  <path d="M25 26 Q14 19 8 12" stroke="var(--muted)" stroke-width="1" fill="none" stroke-dasharray="2 1.5"/>
-  <path d="M25 26 Q13 33 7 40" stroke="var(--muted)" stroke-width="1" fill="none" stroke-dasharray="2 1.5"/>
-  <text x="110" y="33" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="700" font-size="20" fill="var(--placa-bg)" letter-spacing="3">CAVOK</text>
-  <text x="110" y="44" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="600" font-size="7" fill="var(--placa-bg)" letter-spacing="1.5" opacity="0.72">by Meteoro405</text>
+  <rect x="18" y="1" width="180" height="34" rx="6" fill="var(--amarillo)"/>
+  <circle cx="31" cy="18" r="6" fill="var(--placa-bg)"/>
+  <circle cx="31" cy="18" r="3.5" fill="var(--amarillo)"/>
+  <path d="M25 18 Q14 12 8 6"  stroke="var(--muted)" stroke-width="1" fill="none" stroke-dasharray="2 1.5"/>
+  <path d="M25 18 Q13 24 7 30" stroke="var(--muted)" stroke-width="1" fill="none" stroke-dasharray="2 1.5"/>
+  <text x="115" y="22" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="700" font-size="18" fill="var(--placa-bg)" letter-spacing="3">CAVOK</text>
+  <text x="115" y="31" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="600" font-size="6" fill="var(--placa-bg)" letter-spacing="1.5" opacity="0.65">by Meteoro405</text>
 </svg>
     <div class="titulos">
       <h1>Meteo Aeronáutica Mundial</h1>
@@ -298,7 +296,7 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v11</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
+  <b>CAVOK v13</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
   · Los reportes se actualizan cada 30–60 min · Caché horaria local
 </footer>
 
@@ -362,7 +360,7 @@ if ('serviceWorker' in navigator){
 }
 
 /* =====================================================
-   CAVOK v11 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v13 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -693,10 +691,32 @@ async function cargarTarjeta(icao, forzar = false){
 
   let nubes = '—';
   if (data.clouds?.length){
-    nubes = data.clouds.map(c => {
+    // Prioridad de condición: OVC > BKN > SCT > FEW > resto
+    const PRIO = { OVC:5, VV:5, BKN:4, SCT:3, FEW:2 };
+    // Por cada texto descriptivo único, conservar solo la capa de mayor altitud
+    // (la más alta es la que más afecta el techo visual)
+    // y si hay varias capas con distinto texto, mostrarlas todas
+    const porTexto = {};
+    data.clouds.forEach(c => {
       const txt = CLOUD_TEXT[c.code] || c.text || c.code;
-      return c.base_feet_agl ? `${txt} (${c.base_feet_agl.toLocaleString('es-AR')} ft)` : txt;
-    }).join(' · ');
+      const alt = c.base_feet_agl || 0;
+      if (!porTexto[txt] || alt > porTexto[txt].alt)
+        porTexto[txt] = { txt, alt, code: c.code };
+    });
+    // Techo: base de la capa BKN/OVC/VV más baja
+    const capasOrdenadas = Object.values(porTexto)
+      .sort((a,b) => (PRIO[b.code]||1) - (PRIO[a.code]||1));
+    const capaTecho = data.clouds
+      .filter(c => ['BKN','OVC','VV'].includes(c.code) && c.base_feet_agl)
+      .sort((a,b) => a.base_feet_agl - b.base_feet_agl)[0];
+    const techoFt = capaTecho?.base_feet_agl;
+    const techoM  = techoFt ? Math.round(techoFt * 0.3048).toLocaleString('es-AR') : null;
+    const techoStr = techoFt
+      ? ` <span class='techo'>· Techo ${techoFt.toLocaleString('es-AR')} ft (${techoM} m)</span>`
+      : '';
+    nubes = capasOrdenadas
+      .map(c => c.alt ? `${c.txt} (${c.alt.toLocaleString('es-AR')} ft)` : c.txt)
+      .join(' · ') + techoStr;
   }
 
   const presion = data.barometer?.hpa != null ? `${data.barometer.hpa} hPa` : '—';
