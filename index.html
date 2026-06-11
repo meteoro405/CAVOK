@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v28</title>
+<title>CAVOK · Meteo Aeronáutica v29</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -333,8 +333,22 @@ header .acciones{display:flex; gap:8px; align-items:center; flex:none}
 .cargando{padding:26px 16px; color:var(--muted); font-family:var(--f-mono); font-size:15px}
 
 footer{
-  text-align:center; color:var(--muted); font-size:14px; padding:18px 0 28px;
+  text-align:center;
+  padding:20px 22px 28px;
   border-top:1px solid var(--linea);
+}
+footer .footer-titulo{
+  font-family:var(--f-display);
+  font-weight:700;
+  font-size:18px;
+  color:var(--texto);
+  letter-spacing:.5px;
+}
+footer .footer-titulo .footer-ver{color:var(--amarillo)}
+footer .footer-sub{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:4px;
 }
 footer b{color:var(--texto)}
 
@@ -403,7 +417,8 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK <span id="appVersion"></span></b> by Meteoro405 · Los reportes se actualizan cada 30–60 min
+  <div class="footer-titulo">CAVOK <span class="footer-ver" id="appVersion"></span> by Meteoro405</div>
+  <div class="footer-sub">Los reportes se actualizan cada 30–60 min</div>
 </footer>
 
 <script src="aeropuertos_mundo.js"></script>
@@ -411,7 +426,7 @@ footer b{color:var(--texto)}
 <script>
 'use strict';
 
-const APP_VERSION = 'v28';
+const APP_VERSION = 'v29';
 document.getElementById('appVersion').textContent = APP_VERSION;
 
 
@@ -466,7 +481,7 @@ window.addEventListener('appinstalled', () => {
 
 
 /* =====================================================
-   CAVOK v28 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v29 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
