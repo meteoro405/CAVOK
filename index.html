@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v24</title>
+<title>CAVOK · Meteo Aeronáutica v25</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -403,7 +403,7 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v22</b> by Meteoro405 · Los reportes se actualizan cada 30–60 min
+  <b>CAVOK v25</b> by Meteoro405 · Los reportes se actualizan cada 30–60 min
 </footer>
 
 <script src="aeropuertos_mundo.js"></script>
@@ -908,6 +908,7 @@ async function cargarTarjeta(icao, forzar = false){
       $obs.textContent = '';
     }
   }
+  cargarTaf(icao);
 }
 
 function refrescar(icao){ cargarTarjeta(icao, true); }
