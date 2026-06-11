@@ -3,7 +3,7 @@
    Cache-first para assets pesados (pistas.js, aeropuertos_mundo.js, íconos).
    Las llamadas a CheckWX y Google Fonts van siempre a la red. */
 
-const CACHE = 'cavok-v29';
+const CACHE = 'cavok-v30';
 
 // Assets pesados — raramente cambian, se sirven desde caché
 const ASSETS = [

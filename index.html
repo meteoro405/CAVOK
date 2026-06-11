@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v29</title>
+<title>CAVOK · Meteo Aeronáutica v31</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -318,6 +318,19 @@ header .acciones{display:flex; gap:8px; align-items:center; flex:none}
 
 
 .techo{font-size:12px; color:var(--muted); font-style:italic}
+
+/* ============ DECODIFICADOR METAR ============ */
+.decoder-section{border-top:1px solid var(--linea);padding:10px 16px 12px}
+.decoder-titulo{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.decoder-traduccion{font-size:13px;line-height:1.65;color:var(--texto)}
+.decoder-traduccion .d-tok{
+  display:inline-block;background:var(--panel2);border-radius:4px;
+  padding:1px 6px;margin:2px 2px;font-family:var(--f-mono);font-size:11.5px;
+  color:var(--amarillo);cursor:help;
+}
+.decoder-raw{font-family:var(--f-mono);font-size:11px;color:var(--muted);
+  background:var(--panel2);border-radius:6px;padding:7px 10px;margin-bottom:8px;
+  word-break:break-all;line-height:1.6}
 .alerta-meteo{background:rgba(235,183,72,.07)}
 .alerta-txt{font-size:14px !important; color:var(--mvfr)}
 .tarjeta code{
@@ -426,7 +439,7 @@ footer b{color:var(--texto)}
 <script>
 'use strict';
 
-const APP_VERSION = 'v29';
+const APP_VERSION = 'v31';
 document.getElementById('appVersion').textContent = APP_VERSION;
 
 
@@ -481,7 +494,7 @@ window.addEventListener('appinstalled', () => {
 
 
 /* =====================================================
-   CAVOK v29 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v31 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -519,6 +532,39 @@ function leerLS(clave, def){
   try { return JSON.parse(localStorage.getItem(PREFIJO + clave)) ?? def; }
   catch(e){ return def; }
 }
+
+/* ─── Caché API compartida entre pestañas (localStorage) ───────────────────
+   Formato de clave: metar_{ICAO}_{fecha}T{hora}  /  taf_{ICAO}_{fecha}T{hora}
+   Se limpia automáticamente al guardar: se borran claves del mismo ICAO
+   que sean de horas anteriores para no acumular datos viejos.           ─── */
+function leerCacheAPI(clave){
+  try {
+    const raw = localStorage.getItem(PREFIJO + 'api_' + clave);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e){ return null; }
+}
+
+function guardarCacheAPI(clave, valor){
+  try {
+    // Limpiar claves viejas del mismo tipo e ICAO (metar_SAEZ_ o taf_SAEZ_)
+    const prefBase = clave.slice(0, clave.lastIndexOf('_') + 1);  // ej: metar_SAEZ_2026-06-11T
+    // El prefBase ya incluye la fecha — buscar claves iguales de horas anteriores
+    const tipoPref = PREFIJO + 'api_' + clave.split('_')[0] + '_' + clave.split('_')[1] + '_';
+    Object.keys(localStorage)
+      .filter(k => k.startsWith(tipoPref) && k !== PREFIJO + 'api_' + clave)
+      .forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
+    localStorage.setItem(PREFIJO + 'api_' + clave, JSON.stringify(valor));
+  } catch(e){
+    // localStorage lleno — intentar sessionStorage como fallback
+    try { sessionStorage.setItem(clave, JSON.stringify(valor)); } catch(e2){}
+  }
+}
+
+function limpiarCacheAPI(clave){
+  try { localStorage.removeItem(PREFIJO + 'api_' + clave); } catch(e){}
+  try { sessionStorage.removeItem(clave); } catch(e){}
+}
+
 function guardarLS(clave, val){
   try { localStorage.setItem(PREFIJO + clave, JSON.stringify(val)); } catch(e){}
 }
@@ -548,9 +594,9 @@ function haceCuanto(iso){
 ===================================================== */
 async function loadMetar(icao, forzar = false){
   const cacheKey = claveCacheHora(icao);
-  if (forzar) sessionStorage.removeItem(cacheKey);
-  const cached = sessionStorage.getItem(cacheKey);
-  if (cached) return JSON.parse(cached);
+  if (forzar) limpiarCacheAPI(cacheKey);
+  const cached = leerCacheAPI(cacheKey);
+  if (cached) return cached;
 
   try {
     const res = await fetch(`${API_BASE}/metar/${icao}/decoded`, {
@@ -560,7 +606,7 @@ async function loadMetar(icao, forzar = false){
     const json = await res.json();
     const data = json?.data?.[0];
     if (!data) return null;
-    try { sessionStorage.setItem(cacheKey, JSON.stringify(data)); } catch(e){}
+    guardarCacheAPI(cacheKey, data);
     return data;
   } catch (e) {
     return null;
@@ -834,6 +880,7 @@ async function cargarTarjeta(icao, forzar = false){
     ? `<div class='metrica ancha alerta-meteo'><div class='et'>⚡ CONDICIONES</div><div class='val alerta-txt'>${alertas.join(' · ')}</div></div>`
     : '';
 
+  const windDeg = data.wind?.degrees ?? null;
   let viento = '—';
   if (data.wind){
     const vel = data.wind.speed_kts != null ? `${data.wind.speed_kts} kt` : '';
@@ -902,7 +949,7 @@ async function cargarTarjeta(icao, forzar = false){
       <div class="metrica"><div class="et">💧 Humedad</div><div class="val">${esc(hum)}</div></div>
       <div class="metrica"><div class="et">🌡 Sensación</div><div class="val">${esc(sensacion)}</div></div>
       <div class="metrica"><div class="et">❄️ Pto. rocío</div><div class="val">${esc(tdStr)}</div></div>
-      <div class="metrica"><div class="et">💨 Viento</div><div class="val">${esc(viento)}</div></div>
+      <div class="metrica"><div class="et">💨 Viento</div><div style="display:flex;align-items:center;gap:8px">${rosaVientoSVG(windDeg)}<div><div class="val">${esc(viento)}</div></div></div></div>
       <div class="metrica"><div class="et">👁 Visibilidad</div><div class="val">${esc(vis)}</div></div>
       <div class="metrica ancha"><div class="et">☁️ Nubes</div><div class="val">${esc(nubes)}${techoHtml}</div></div>
       <div class="metrica ancha"><div class="et">🔵 Presión</div><div class="val">${esc(presion)}</div></div>
@@ -910,6 +957,7 @@ async function cargarTarjeta(icao, forzar = false){
     </div>
     ${renderPistas(icao, data)}
     <div id="taf-${esc(icao)}" class="taf-section" style="display:none"></div>
+    <div class="decoder-section" id="decoder-${esc(icao)}"></div>
     <details>
       <summary>METAR crudo</summary>
       <code>${esc(data.raw_text || '—')}</code>
@@ -927,6 +975,197 @@ async function cargarTarjeta(icao, forzar = false){
     }
   }
   cargarTaf(icao);
+  renderDecoder(icao, data.raw_text);
+}
+
+
+function rosaVientoSVG(deg){
+  const r = 26, cx = 28, cy = 28, size = 56;
+  const circulo = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--linea)" stroke-width="1"/>`;
+  const centro  = `<circle cx="${cx}" cy="${cy}" r="1.5" fill="var(--muted)"/>`;
+  const labels  = [
+    `<text x="${cx}" y="8"  text-anchor="middle" font-size="7.5" font-weight="700" fill="var(--texto)" font-family="JetBrains Mono,monospace">N</text>`,
+    `<text x="${cx}" y="53" text-anchor="middle" font-size="7.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">S</text>`,
+    `<text x="4"  y="31" text-anchor="middle" font-size="7.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">W</text>`,
+    `<text x="52" y="31" text-anchor="middle" font-size="7.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">E</text>`,
+  ].join('');
+  const ticks = [
+    `<line x1="${cx}" y1="11" x2="${cx}" y2="14" stroke="var(--muted)" stroke-width="1"/>`,
+    `<line x1="${cx}" y1="42" x2="${cx}" y2="45" stroke="var(--muted)" stroke-width="1"/>`,
+    `<line x1="11" y1="${cy}" x2="14" y2="${cy}" stroke="var(--muted)" stroke-width="1"/>`,
+    `<line x1="42" y1="${cy}" x2="45" y2="${cy}" stroke="var(--muted)" stroke-width="1"/>`,
+  ].join('');
+
+  let flecha = '';
+  if (deg != null){
+    flecha = `<g transform="translate(${cx},${cy}) rotate(${deg})">
+      <line x1="0" y1="-19" x2="0" y2="2" stroke="var(--amarillo)" stroke-width="2" stroke-linecap="round"/>
+      <polygon points="0,-19 -4,-11 4,-11" fill="var(--amarillo)"/>
+    </g>`;
+  } else {
+    // Calmo: circulito
+    flecha = `<circle cx="${cx}" cy="${cy}" r="5" fill="none" stroke="var(--muted)" stroke-width="1.5"/>`;
+  }
+
+  return `<svg viewBox="0 0 ${size} ${size}" width="52" height="52" style="flex:none" aria-hidden="true">${circulo}${ticks}${labels}${centro}${flecha}</svg>`;
+}
+
+
+/* =====================================================
+   DECODIFICADOR METAR — traducción a lenguaje natural
+===================================================== */
+const DIRECCIONES_ES = {
+  N:'Norte', NNE:'Norte-Noreste', NE:'Noreste', ENE:'Este-Noreste',
+  E:'Este', ESE:'Este-Sureste', SE:'Sureste', SSE:'Sur-Sureste',
+  S:'Sur', SSW:'Sur-Suroeste', SW:'Suroeste', WSW:'Oeste-Suroeste',
+  W:'Oeste', WNW:'Oeste-Noroeste', NW:'Noroeste', NNW:'Norte-Noroeste',
+  VRB:'variable'
+};
+const FENOMENOS_ES = {
+  RA:'lluvia', DZ:'llovizna', SN:'nieve', SG:'granizo menudo',
+  GR:'granizo', GS:'granizo pequeño', TS:'tormenta eléctrica',
+  FG:'niebla', BR:'neblina', HZ:'calima', FU:'humo', SA:'arena',
+  DU:'polvo', PO:'tolvanera', SQ:'turbonada', FC:'tromba',
+  FZRA:'lluvia engelante', FZDZ:'llovizna engelante', TSRA:'tormenta con lluvia',
+  TSSN:'tormenta con nieve', RASN:'lluvia y nieve', SHRA:'chubascos de lluvia',
+  SHRA:'chubascos de lluvia', SHSN:'chubascos de nieve',
+};
+const INTENSIDAD_ES = { '+':'intensa', '-':'ligera', 'VC':'en las cercanías' };
+const NUBES_ES = {
+  SKC:'cielo despejado', CLR:'cielo despejado', NSC:'sin nubes significativas',
+  NCD:'sin nubes detectadas', FEW:'pocas nubes', SCT:'nubes dispersas',
+  BKN:'mayormente nublado', OVC:'cielo cubierto', VV:'cielo invisible'
+};
+
+function decodirMetar(raw){
+  if (!raw) return null;
+  const partes = raw.trim().split(/\s+/);
+  const lineas = [];
+  let i = 0;
+
+  while (i < partes.length){
+    const tok = partes[i];
+
+    // Estación ICAO
+    if (i === 0 && /^[A-Z]{4}$/.test(tok)){
+      lineas.push({ tok, txt: `Aeropuerto <b>${tok}</b>` }); i++; continue;
+    }
+    // Fecha/hora (ddhhmmZ)
+    if (/^\d{6}Z$/.test(tok)){
+      const d = tok.slice(0,2), h = tok.slice(2,4), m = tok.slice(4,6);
+      lineas.push({ tok, txt: `Emitido el día <b>${d}</b> a las <b>${h}:${m} UTC</b>` }); i++; continue;
+    }
+    // AUTO / COR
+    if (tok === 'AUTO'){ lineas.push({ tok, txt: 'Observación <b>automática</b>' }); i++; continue; }
+    if (tok === 'COR') { lineas.push({ tok, txt: 'Reporte <b>corregido</b>' }); i++; continue; }
+    // Viento: dddssKT o dddssGggKT o VRBssKT
+    if (/^(\d{3}|VRB)\d{2}(G\d{2})?KT$/.test(tok)){
+      const dir = tok.slice(0,3);
+      const vel = parseInt(tok.slice(3,5));
+      const gust = tok.includes('G') ? parseInt(tok.match(/G(\d+)/)[1]) : null;
+      const dirTxt = dir === 'VRB' ? 'dirección variable' : dir === '000' ? 'calmo' : `del ${DIRECCIONES_ES[gradadosADir(parseInt(dir))] || dir + '°'}`;
+      let txt = dir === '000' || vel === 0
+        ? 'Viento <b>calmo</b>'
+        : `Viento <b>${dirTxt}</b> a <b>${vel} nudos</b>`;
+      if (gust) txt += `, rachas de <b>${gust} nudos</b>`;
+      lineas.push({ tok, txt }); i++; continue;
+    }
+    // Viento en MPS
+    if (/^(\d{3}|VRB)\d{2}(G\d{2})?MPS$/.test(tok)){
+      const vel = parseInt(tok.slice(3,5));
+      lineas.push({ tok, txt: `Viento a <b>${vel} m/s</b>` }); i++; continue;
+    }
+    // Variación de viento (dddVddd)
+    if (/^\d{3}V\d{3}$/.test(tok)){
+      const [d1,d2] = tok.split('V');
+      lineas.push({ tok, txt: `Dirección variable entre <b>${d1}°</b> y <b>${d2}°</b>` }); i++; continue;
+    }
+    // Visibilidad (metros o CAVOK)
+    if (tok === 'CAVOK'){
+      lineas.push({ tok, txt: 'Visibilidad <b>superior a 10 km</b>, sin nubes ni fenómenos significativos' }); i++; continue;
+    }
+    if (/^\d{4}$/.test(tok) && parseInt(tok) <= 9999){
+      const m = parseInt(tok);
+      const txt = m >= 9999 ? 'Visibilidad <b>superior a 10 km</b>'
+                : m >= 1000 ? `Visibilidad <b>${(m/1000).toFixed(1)} km</b>`
+                : `Visibilidad <b>${m} metros</b>`;
+      lineas.push({ tok, txt }); i++; continue;
+    }
+    // 9999
+    if (tok === '9999'){ lineas.push({ tok, txt: 'Visibilidad <b>superior a 10 km</b>' }); i++; continue; }
+    // Nubes: FEW/SCT/BKN/OVC + altura
+    if (/^(FEW|SCT|BKN|OVC|VV)\d{3}(CB|TCU)?$/.test(tok)){
+      const tipo = tok.slice(0,3) === 'VV' ? 'VV' : tok.match(/^(FEW|SCT|BKN|OVC)/)[1];
+      const altFt = parseInt(tok.slice(tipo.length, tipo.length+3)) * 100;
+      const altM  = Math.round(altFt * 0.3048);
+      const cb    = tok.endsWith('CB') ? ' (cumulonimbus — peligroso)' : tok.endsWith('TCU') ? ' (towering cumulus)' : '';
+      const tipoTxt = NUBES_ES[tipo] || tipo;
+      const txt = tipo === 'VV'
+        ? `Cielo invisible, techo vertical <b>${altFt.toLocaleString('es-AR')} ft (${altM.toLocaleString('es-AR')} m)</b>`
+        : `<b>${tipoTxt.charAt(0).toUpperCase()+tipoTxt.slice(1)}</b> a <b>${altFt.toLocaleString('es-AR')} ft (${altM.toLocaleString('es-AR')} m)</b>${cb}`;
+      lineas.push({ tok, txt }); i++; continue;
+    }
+    // SKC / CLR / NSC / NCD
+    if (['SKC','CLR','NSC','NCD'].includes(tok)){
+      lineas.push({ tok, txt: `<b>${NUBES_ES[tok]||tok}</b>` }); i++; continue;
+    }
+    // Temperatura y punto de rocío (T/Td)
+    if (/^M?\d{2}\/M?\d{2}$/.test(tok)){
+      const [tRaw, tdRaw] = tok.split('/');
+      const tC  = (tRaw.startsWith('M')  ? -1 : 1) * parseInt(tRaw.replace('M',''));
+      const tdC = (tdRaw.startsWith('M') ? -1 : 1) * parseInt(tdRaw.replace('M',''));
+      lineas.push({ tok, txt: `Temperatura <b>${tC}°C</b>, punto de rocío <b>${tdC}°C</b>` }); i++; continue;
+    }
+    // Presión QNH
+    if (/^Q\d{4}$/.test(tok)){
+      lineas.push({ tok, txt: `Presión QNH <b>${tok.slice(1)} hPa</b>` }); i++; continue;
+    }
+    if (/^A\d{4}$/.test(tok)){
+      const inhg = (parseInt(tok.slice(1))/100).toFixed(2);
+      lineas.push({ tok, txt: `Presión <b>${inhg} inHg</b>` }); i++; continue;
+    }
+    // Fenómenos meteorológicos
+    const fxMatch = tok.match(/^([+\-]|VC)?((FZ|TS|SH|BL|DR|MI|PR|BC)?(RA|DZ|SN|SG|GR|GS|FG|BR|HZ|FU|SA|DU|PO|SQ|FC|UP)+)$/);
+    if (fxMatch){
+      const intens = fxMatch[1] ? (INTENSIDAD_ES[fxMatch[1]] || fxMatch[1]) : '';
+      const fenTxt = FENOMENOS_ES[fxMatch[2]] || fxMatch[2].toLowerCase();
+      const txt = intens ? `<b>${fenTxt.charAt(0).toUpperCase()+fenTxt.slice(1)}</b> ${intens}` : `<b>${fenTxt.charAt(0).toUpperCase()+fenTxt.slice(1)}</b>`;
+      lineas.push({ tok, txt }); i++; continue;
+    }
+    // RMK y todo lo que sigue — ignorar
+    if (tok === 'RMK'){ break; }
+    // Token no reconocido — mostrar tal cual
+    lineas.push({ tok, txt: null }); i++;
+  }
+  return lineas;
+}
+
+function gradadosADir(deg){
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
+function renderDecoder(icao, raw){
+  const $zona = document.getElementById(`decoder-${icao}`);
+  if (!$zona || !raw) return;
+  const lineas = decodirMetar(raw);
+  if (!lineas?.length) return;
+
+  const tokens = lineas.map(l =>
+    l.txt
+      ? `<span class="d-tok" title="${esc(l.txt.replace(/<[^>]+>/g,''))}">${esc(l.tok)}</span>`
+      : `<span class="d-tok" style="opacity:.5">${esc(l.tok)}</span>`
+  ).join(' ');
+
+  const traduccion = lineas
+    .filter(l => l.txt)
+    .map(l => `<span>${l.txt}</span>`)
+    .join('. ');
+
+  $zona.innerHTML = `
+    <div class="decoder-titulo">🔤 Decodificación METAR</div>
+    <div class="decoder-raw">${tokens}</div>
+    <div class="decoder-traduccion">${traduccion}.</div>`;
 }
 
 function refrescar(icao){ cargarTarjeta(icao, true); }
@@ -945,8 +1184,8 @@ function claveCacheTaf(icao){
 
 async function loadTaf(icao){
   const cacheKey = claveCacheTaf(icao);
-  const cached = sessionStorage.getItem(cacheKey);
-  if (cached) return JSON.parse(cached);
+  const cached = leerCacheAPI(cacheKey);
+  if (cached) return cached;
   try {
     const res = await fetch(`${API_BASE}/taf/${icao}/decoded`, {
       headers: { 'X-API-Key': API_KEY }
@@ -955,7 +1194,7 @@ async function loadTaf(icao){
     const json = await res.json();
     const data = json?.data?.[0];
     if (!data) return null;
-    try { sessionStorage.setItem(cacheKey, JSON.stringify(data)); } catch(e){}
+    guardarCacheAPI(cacheKey, data);
     return data;
   } catch(e){ return null; }
 }
