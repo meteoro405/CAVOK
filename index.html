@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v13</title>
+<title>CAVOK · Meteo Aeronáutica v14</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -224,6 +224,51 @@ header .acciones{display:flex; gap:8px; align-items:center; flex:none}
 .pistas-lista{font-family:var(--f-mono); font-size:12px; color:var(--texto); padding:2px 0 6px}
 .pistas-lista div{padding:2px 0}
 .pistas-fuente{font-size:10.5px; color:var(--muted)}
+
+/* ============ SECCIÓN VUELOS ============ */
+.vuelos-section{border-top:1px solid var(--linea)}
+.vuelos-cab{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 16px 0;
+}
+.vuelos-titulo{
+  font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted);
+}
+.btn-ver-salidas{
+  background:var(--panel2); border:1px solid var(--linea); color:var(--muted);
+  border-radius:7px; padding:5px 12px; font-size:12px; font-weight:600;
+  font-family:var(--f-body); cursor:pointer; letter-spacing:.3px;
+}
+.btn-ver-salidas:hover{color:var(--texto); border-color:var(--amarillo)}
+.btn-ver-salidas.cargando-vuelos{opacity:.6; cursor:default}
+.vuelos-lista{padding:0}
+.vuelo{
+  display:grid; grid-template-columns:56px 1fr auto;
+  gap:2px 10px; padding:10px 16px;
+  border-top:1px solid var(--linea); align-items:center;
+}
+.vuelo:hover{background:var(--panel2)}
+.vuelo-num{font-family:var(--f-mono);font-weight:700;font-size:13px;color:var(--amarillo);line-height:1.2}
+.vuelo-aerolinea{font-size:10px;color:var(--muted);font-family:var(--f-mono);margin-top:1px}
+.vuelo-ruta{font-size:14px;font-weight:500;line-height:1.2}
+.vuelo-iata{font-family:var(--f-mono);font-size:11px;color:var(--muted);margin-top:1px}
+.vuelo-hora-bloque{text-align:right}
+.vuelo-hora{font-family:var(--f-mono);font-size:15px;font-weight:600}
+.vuelo-estado{
+  display:block; margin-top:3px; font-size:10px; font-weight:600;
+  letter-spacing:.4px; padding:2px 6px; border-radius:4px; text-align:center;
+}
+.est-puntual  {background:rgba(63,201,126,.15);color:#3FC97E}
+.est-demorado {background:rgba(235,183,72,.15);color:#EBB748}
+.est-cancelado{background:rgba(239,99,99,.15);color:#EF6363}
+.est-activo   {background:rgba(100,149,237,.15);color:#6495ED}
+.vuelos-pie{
+  padding:7px 16px 10px; font-size:10.5px; color:var(--muted);
+  border-top:1px solid var(--linea); text-align:right;
+}
+.vuelos-error{padding:12px 16px;font-size:13px;color:var(--muted)}
+.vuelos-vacio{padding:14px 16px;font-size:13px;color:var(--muted);text-align:center}
+
 .techo{font-size:12px; color:var(--muted); font-style:italic}
 .tarjeta code{
   display:block; margin-top:7px; font-family:var(--f-mono); font-size:13px;
@@ -296,7 +341,7 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v13</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
+  <b>CAVOK v14</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
   · Los reportes se actualizan cada 30–60 min · Caché horaria local
 </footer>
 
@@ -360,7 +405,7 @@ if ('serviceWorker' in navigator){
 }
 
 /* =====================================================
-   CAVOK v13 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v14 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -739,6 +784,7 @@ async function cargarTarjeta(icao, forzar = false){
       <div class="metrica ancha"><div class="et">🔵 Presión</div><div class="val">${esc(presion)}</div></div>
     </div>
     ${renderPistas(icao, data)}
+    <div class="vuelos-section" id="vuelos-${esc(icao)}"></div>
     <details>
       <summary>METAR crudo</summary>
       <code>${esc(data.raw_text || '—')}</code>
@@ -747,9 +793,150 @@ async function cargarTarjeta(icao, forzar = false){
   if ($obs) $obs.textContent = data.observed
     ? `Reporte ${haceCuanto(data.observed)}`
     : '';
+  cargarVuelos(icao);
 }
 
 function refrescar(icao){ cargarTarjeta(icao, true); }
+
+/* =====================================================
+   VUELOS — Salidas en tiempo real (AviationStack)
+   Plan gratuito: 100 req/mes · se cachea 1 hora en sessionStorage
+===================================================== */
+const AV_KEY = '';   // ← pegá tu API key de aviationstack.com
+
+const ESTADO_LABEL = {
+  scheduled  : ['Programado',  'est-puntual'],
+  active     : ['En vuelo',    'est-activo'],
+  landed     : ['Aterrizó',    'est-activo'],
+  cancelled  : ['Cancelado',   'est-cancelado'],
+  incident   : ['Incidente',   'est-cancelado'],
+  diverted   : ['Desviado',    'est-demorado'],
+};
+
+function claveCacheVuelos(icao){
+  const a = new Date();
+  return `vuelos_dep_${icao}_${a.getFullYear()}-${String(a.getMonth()+1).padStart(2,'0')}-${String(a.getDate()).padStart(2,'0')}T${String(a.getHours()).padStart(2,'0')}`;
+}
+
+async function loadSalidas(icao){
+  const cacheKey = claveCacheVuelos(icao);
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  if (!AV_KEY){
+    return { error: 'sin_key' };
+  }
+
+  try {
+    // AviationStack: departures por ICAO, próximas 6 horas, máx 10 vuelos
+    const url = `https://api.aviationstack.com/v1/flights?access_key=${AV_KEY}&dep_icao=${icao}&flight_status=scheduled,active&limit=8`;
+    const res = await fetch(url);
+    if (!res.ok) return { error: 'api_error', status: res.status };
+    const json = await res.json();
+    if (json.error) return { error: 'api_error', msg: json.error.message };
+    const data = (json.data || []).slice(0, 8);
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(data)); } catch(e){}
+    return data;
+  } catch(e){
+    return { error: 'red' };
+  }
+}
+
+function horaLocal(isoStr){
+  if (!isoStr) return '—';
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+  } catch(e){ return '—'; }
+}
+
+function demora(programada, estimada){
+  if (!programada || !estimada) return 0;
+  return Math.round((new Date(estimada) - new Date(programada)) / 60000);
+}
+
+function renderSalidas(icao, vuelos){
+  const $zona = document.getElementById(`vuelos-${icao}`);
+  if (!$zona) return;
+
+  // Sin key → mostrar botón "Ver salidas" + aviso
+  if (vuelos?.error === 'sin_key'){
+    $zona.innerHTML = `
+      <div class="vuelos-cab">
+        <span class="vuelos-titulo">✈ Salidas</span>
+      </div>
+      <div class="vuelos-error">
+        Configurá tu API key de
+        <a href="https://aviationstack.com" target="_blank" rel="noopener" style="color:var(--amarillo)">AviationStack</a>
+        en la constante <code style="font-family:var(--f-mono);font-size:11px">AV_KEY</code> del código.
+      </div>`;
+    return;
+  }
+
+  if (vuelos?.error){
+    $zona.innerHTML = `
+      <div class="vuelos-cab"><span class="vuelos-titulo">✈ Salidas</span></div>
+      <div class="vuelos-error">No se pudieron obtener los vuelos en este momento.</div>`;
+    return;
+  }
+
+  if (!vuelos.length){
+    $zona.innerHTML = `
+      <div class="vuelos-cab"><span class="vuelos-titulo">✈ Salidas</span></div>
+      <div class="vuelos-vacio">Sin salidas programadas en las próximas horas.</div>`;
+    return;
+  }
+
+  const filas = vuelos.map(v => {
+    const num     = v.flight?.iata || v.flight?.icao || '—';
+    const aeroln  = v.airline?.name || '—';
+    const dest    = v.arrival?.airport || '—';
+    const destIata= v.arrival?.iata   || '';
+    const destIcao= v.arrival?.icao   || '';
+    const horaProg= horaLocal(v.departure?.scheduled);
+    const horaEst = horaLocal(v.departure?.estimated || v.departure?.scheduled);
+    const min     = demora(v.departure?.scheduled, v.departure?.estimated);
+    const estado  = v.flight_status || 'scheduled';
+    let [estadoTxt, estadoCls] = ESTADO_LABEL[estado] || ['—','est-puntual'];
+    if (estado === 'scheduled' && min > 5){
+      estadoTxt = `+${min} min`; estadoCls = 'est-demorado';
+    }
+    return `
+      <div class="vuelo">
+        <div>
+          <div class="vuelo-num">${esc(num)}</div>
+          <div class="vuelo-aerolinea">${esc(aeroln.split(' ')[0])}</div>
+        </div>
+        <div>
+          <div class="vuelo-ruta">${esc(dest)}</div>
+          <div class="vuelo-iata">${esc([destIata,destIcao].filter(Boolean).join(' · '))}</div>
+        </div>
+        <div class="vuelo-hora-bloque">
+          <div class="vuelo-hora">${esc(horaEst)}</div>
+          <span class="vuelo-estado ${estadoCls}">${esc(estadoTxt)}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  const ahora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  $zona.innerHTML = `
+    <div class="vuelos-cab">
+      <span class="vuelos-titulo">✈ Salidas</span>
+      <span style="font-size:11px;color:var(--muted)">Actualizado ${ahora}</span>
+    </div>
+    <div class="vuelos-lista">${filas}</div>
+    <div class="vuelos-pie">AviationStack · Próximas horas · Horarios locales del aeropuerto</div>`;
+}
+
+async function cargarVuelos(icao){
+  const $zona = document.getElementById(`vuelos-${icao}`);
+  if (!$zona) return;
+  $zona.innerHTML = `<div class="vuelos-cab"><span class="vuelos-titulo">✈ Salidas</span></div>
+    <div class="vuelos-error" style="color:var(--muted)">Cargando vuelos…</div>`;
+  const vuelos = await loadSalidas(icao);
+  if (document.getElementById(`vuelos-${icao}`)) renderSalidas(icao, vuelos);
+}
+
 
 /* =====================================================
    DIAGRAMA DE PISTAS (datos: OurAirports, dominio público)
