@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v21</title>
+<title>CAVOK · Meteo Aeronáutica v22</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -265,6 +265,56 @@ header .acciones{display:flex; gap:8px; align-items:center; flex:none}
 .pistas-lista div{padding:2px 0}
 .pistas-fuente{font-size:10.5px; color:var(--muted)}
 
+/* ============ TAF ============ */
+.taf-section{border-top:1px solid var(--linea)}
+.taf-header{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 16px;cursor:pointer;user-select:none;
+}
+.taf-header:hover{background:var(--panel2)}
+.taf-arrow{font-size:11px;color:var(--muted);transition:transform .2s;flex:none}
+.taf-header.abierto .taf-arrow{transform:rotate(90deg)}
+.taf-titulo{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);flex:1}
+.taf-vigencia{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.taf-body{padding:0 16px 10px;display:none}
+.taf-body.visible{display:block}
+.taf-periodo{
+  display:grid;grid-template-columns:76px 1fr;
+  gap:4px 12px;padding:9px 0;border-bottom:1px solid var(--linea);align-items:start;
+}
+.taf-periodo:last-child{border-bottom:none}
+.taf-hora{font-family:var(--f-mono);font-size:12px;font-weight:600;color:var(--texto);line-height:1.4}
+.taf-tipo{
+  display:inline-block;margin-top:3px;
+  font-size:9px;font-weight:700;letter-spacing:.8px;
+  padding:2px 5px;border-radius:4px;text-transform:uppercase;
+}
+.tipo-from  {background:rgba(100,149,237,.15);color:#6495ED}
+.tipo-tempo {background:rgba(235,183,72,.15);color:#EBB748}
+.tipo-becmg {background:rgba(63,201,126,.15);color:#3FC97E}
+.tipo-prob  {background:rgba(239,99,99,.12);color:#EF6363}
+.taf-cat{
+  display:inline-block;font-size:9px;font-weight:700;letter-spacing:.6px;
+  padding:2px 6px;border-radius:4px;margin-bottom:4px;
+}
+.taf-cat-vfr  {background:rgba(63,201,126,.15);color:#3FC97E}
+.taf-cat-mvfr {background:rgba(235,183,72,.15);color:#EBB748}
+.taf-cat-ifr  {background:rgba(239,99,99,.15);color:#EF6363}
+.taf-cat-lifr {background:rgba(239,99,99,.15);color:#EF6363}
+.taf-cond{font-size:13px;line-height:1.55;color:var(--texto)}
+.taf-sub{color:var(--muted);font-size:12px}
+.taf-pie{
+  font-size:10.5px;color:var(--muted);margin-top:8px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.taf-raw-toggle{font-size:11px;cursor:pointer;text-decoration:underline;color:var(--muted)}
+.taf-raw{
+  margin-top:8px;padding:8px 10px;background:var(--panel2);
+  border-radius:6px;font-family:var(--f-mono);font-size:11px;
+  color:var(--muted);word-break:break-all;line-height:1.6;display:none;
+}
+.taf-error{padding:10px 16px 12px;font-size:13px;color:var(--muted)}
+
 
 
 .techo{font-size:12px; color:var(--muted); font-style:italic}
@@ -353,7 +403,7 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v21</b> · Los reportes se actualizan cada 30–60 min
+  <b>CAVOK v22</b> by Meteoro405 · Los reportes se actualizan cada 30–60 min
 </footer>
 
 <script src="aeropuertos_mundo.js"></script>
@@ -361,36 +411,6 @@ footer b{color:var(--texto)}
 <script>
 'use strict';
 
-/* ============ ACTUALIZACIÓN SW ============ */
-if ('serviceWorker' in navigator){
-  navigator.serviceWorker.addEventListener('message', e => {
-    if (e.data?.type === 'SW_UPDATED'){
-      document.getElementById('updateBanner').classList.add('visible');
-    }
-  });
-  navigator.serviceWorker.ready.then(reg => {
-    if (reg.waiting){
-      document.getElementById('updateBanner').classList.add('visible');
-    }
-    reg.addEventListener('updatefound', () => {
-      const newSW = reg.installing;
-      newSW.addEventListener('statechange', () => {
-        if (newSW.state === 'installed' && navigator.serviceWorker.controller){
-          document.getElementById('updateBanner').classList.add('visible');
-        }
-      });
-    });
-  });
-}
-document.getElementById('btnUpdate').addEventListener('click', () => {
-  navigator.serviceWorker.ready.then(reg => {
-    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-  });
-  window.location.reload();
-});
-document.getElementById('btnUpdateCerrar').addEventListener('click', () => {
-  document.getElementById('updateBanner').classList.remove('visible');
-});
 
 
 /* =====================================================
@@ -440,25 +460,10 @@ window.addEventListener('appinstalled', () => {
   deferredPrompt = null;
 });
 
-// Registrar el service worker
-if ('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=20')
-      .catch(err => console.warn('SW no registrado:', err));
-  });
-}
 
-// Escuchar actualizaciones del Service Worker
-if ('serviceWorker' in navigator){
-  navigator.serviceWorker.addEventListener('message', e => {
-    if (e.data?.type === 'SW_UPDATED'){
-      document.getElementById('swUpdateBanner').classList.add('visible');
-    }
-  });
-}
 
 /* =====================================================
-   CAVOK v21 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v22 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -886,6 +891,7 @@ async function cargarTarjeta(icao, forzar = false){
       ${alertaHtml}
     </div>
     ${renderPistas(icao, data)}
+    <div id="taf-${esc(icao)}" class="taf-section" style="display:none"></div>
     <details>
       <summary>METAR crudo</summary>
       <code>${esc(data.raw_text || '—')}</code>
@@ -905,6 +911,186 @@ async function cargarTarjeta(icao, forzar = false){
 }
 
 function refrescar(icao){ cargarTarjeta(icao, true); }
+
+/* =====================================================
+   TAF — Pronóstico aeronáutico (CheckWX v2)
+   Caché por hora en sessionStorage
+===================================================== */
+const CLOUD_CAT = { SKC:'VFR', CLR:'VFR', NSC:'VFR', NCD:'VFR',
+                    FEW:'VFR', SCT:'MVFR', BKN:'IFR', OVC:'IFR', VV:'LIFR' };
+
+function claveCacheTaf(icao){
+  const a = new Date();
+  return `taf_${icao}_${a.getFullYear()}-${String(a.getMonth()+1).padStart(2,'0')}-${String(a.getDate()).padStart(2,'0')}T${String(a.getHours()).padStart(2,'0')}`;
+}
+
+async function loadTaf(icao){
+  const cacheKey = claveCacheTaf(icao);
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) return JSON.parse(cached);
+  try {
+    const res = await fetch(`${API_BASE}/taf/${icao}/decoded`, {
+      headers: { 'X-API-Key': API_KEY }
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const data = json?.data?.[0];
+    if (!data) return null;
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(data)); } catch(e){}
+    return data;
+  } catch(e){ return null; }
+}
+
+function horaZStr(isoStr){
+  if (!isoStr) return '—';
+  try {
+    const d = new Date(isoStr);
+    return `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')} Z`;
+  } catch(e){ return '—'; }
+}
+
+function catTaf(forecast){
+  // Determinar categoría desde visibilidad y nubes del período
+  const vis = forecast.visibility?.meters ?? 9999;
+  let peorCat = 'VFR';
+  const prio = ['VFR','MVFR','IFR','LIFR'];
+  // Por nubes
+  (forecast.clouds || []).forEach(c => {
+    const cat = CLOUD_CAT[c.code] || 'VFR';
+    if (prio.indexOf(cat) > prio.indexOf(peorCat)) peorCat = cat;
+  });
+  // Por visibilidad
+  let visCat = 'VFR';
+  if (vis < 1500) visCat = 'LIFR';
+  else if (vis < 3000) visCat = 'IFR';
+  else if (vis < 5000) visCat = 'MVFR';
+  if (prio.indexOf(visCat) > prio.indexOf(peorCat)) peorCat = visCat;
+  return peorCat;
+}
+
+function renderTafPeriodo(f, tipo){
+  const tipoClase = { FM:'tipo-from', TEMPO:'tipo-tempo', BECMG:'tipo-becmg',
+                      PROB30:'tipo-prob', PROB40:'tipo-prob', BASE:'tipo-from' };
+  const tipoLabel = { FM:'FROM', TEMPO:'TEMPO', BECMG:'BECMG',
+                      PROB30:'PROB 30%', PROB40:'PROB 40%', BASE:'BASE' };
+
+  const cat = catTaf(f);
+  const catCls = `taf-cat-${cat.toLowerCase()}`;
+
+  // Hora
+  const desde = horaZStr(f.timestamp?.from || f.period?.df);
+  const hasta = horaZStr(f.timestamp?.to   || f.period?.dt);
+  const horaHtml = `${desde}<br><span class="taf-sub">→ ${hasta}</span>`;
+
+  // Viento
+  let vientoStr = '';
+  if (f.wind){
+    const vel = f.wind.speed_kts != null ? `${f.wind.speed_kts} kt` : '';
+    const gust = f.wind.gust_kts  != null ? ` · Rachas ${f.wind.gust_kts} kt` : '';
+    const dir  = f.wind.direction || (f.wind.degrees != null ? `${f.wind.degrees}°` : '');
+    vientoStr = [vel, dir].filter(Boolean).join(' ') + gust;
+  }
+
+  // Visibilidad
+  let visStr = '';
+  if (f.visibility?.meters != null){
+    const m = parseFloat(String(f.visibility.meters).replace(/[^\d.]/g,''));
+    visStr = isNaN(m) ? '' : m >= 9999 ? '+10 km' : `${(m/1000).toFixed(1)} km`;
+  }
+
+  // Nubes
+  let nubesStr = '';
+  if (f.clouds?.length){
+    const CLOUD_TEXT2 = { SKC:'Despejado', CLR:'Despejado', NSC:'Sin nubes significativas',
+                          FEW:'Pocas nubes', SCT:'Nubes dispersas',
+                          BKN:'Mayormente nublado', OVC:'Cubierto', VV:'Cielo invisible' };
+    const porTexto2 = {};
+    f.clouds.forEach(c => {
+      const txt = CLOUD_TEXT2[c.code] || c.text || c.code;
+      const alt = c.feet ?? c.base_feet_agl ?? 0;
+      if (!porTexto2[txt] || alt > porTexto2[txt].alt)
+        porTexto2[txt] = { txt, alt, code: c.code };
+    });
+    const PRIO2 = { OVC:5, VV:5, BKN:4, SCT:3, FEW:2 };
+    nubesStr = Object.values(porTexto2)
+      .sort((a,b) => (PRIO2[b.code]||1)-(PRIO2[a.code]||1))
+      .map(c => c.alt ? `${c.txt} (${c.alt.toLocaleString('es-AR')} ft)` : c.txt)
+      .join(' · ');
+  }
+
+  // Tiempo significativo
+  const wx = (f.conditions || []).map(c => c.text || c.code).join(' · ');
+
+  const lineas = [
+    vientoStr ? `Viento <b>${esc(vientoStr)}</b>` : '',
+    visStr    ? `Visibilidad <b>${esc(visStr)}</b>${wx ? ` <span class="taf-sub">en ${esc(wx)}</span>` : ''}` : '',
+    nubesStr  ? `<span class="taf-sub">${esc(nubesStr)}</span>` : '',
+  ].filter(Boolean).join('<br>') || '<span class="taf-sub">Sin cambios</span>';
+
+  return `
+    <div class="taf-periodo">
+      <div>
+        <div class="taf-hora">${horaHtml}</div>
+        <span class="taf-tipo ${tipoClase[tipo]||'tipo-from'}">${tipoLabel[tipo]||tipo}</span>
+      </div>
+      <div>
+        <span class="taf-cat ${catCls}">${cat}</span>
+        <div class="taf-cond">${lineas}</div>
+      </div>
+    </div>`;
+}
+
+function renderTaf(icao, data){
+  const $zona = document.getElementById(`taf-${icao}`);
+  if (!$zona) return;
+
+  if (!data){
+    $zona.innerHTML = `<div class="taf-error">Sin pronóstico TAF disponible para ${esc(icao)}.</div>`;
+    $zona.style.display = '';
+    return;
+  }
+
+  const forecasts = data.forecast || [];
+  if (!forecasts.length){
+    $zona.style.display = 'none';
+    return;
+  }
+
+  // Período de validez del TAF
+  const vigDesde = horaZStr(data.timestamp?.from || data.period?.df);
+  const vigHasta = horaZStr(data.timestamp?.to   || data.period?.dt);
+
+  // Determinar tipo de cada período
+  let periodos = '';
+  forecasts.forEach((f, i) => {
+    const tipo = i === 0 ? 'BASE'
+      : f.change?.indicator?.code || f.type || 'FM';
+    periodos += renderTafPeriodo(f, tipo);
+  });
+
+  const tafId = `taf-raw-${esc(icao)}`;
+  $zona.innerHTML = `
+    <div class="taf-header" onclick="this.classList.toggle('abierto');document.getElementById('tafbody-${esc(icao)}').classList.toggle('visible')">
+      <span class="taf-arrow">▶</span>
+      <span class="taf-titulo">📋 Pronóstico TAF</span>
+      <span class="taf-vigencia">${esc(vigDesde)} – ${esc(vigHasta)}</span>
+    </div>
+    <div class="taf-body" id="tafbody-${esc(icao)}">
+      ${periodos}
+      <div class="taf-pie">
+        <span>CheckWX · Horarios en UTC (Z)</span>
+        <span class="taf-raw-toggle" onclick="const r=document.getElementById('${tafId}');r.style.display=r.style.display==='none'?'block':'none'">TAF crudo</span>
+      </div>
+      <div class="taf-raw" id="${tafId}">${esc(data.raw_text || '—')}</div>
+    </div>`;
+  $zona.style.display = '';
+}
+
+async function cargarTaf(icao){
+  const data = await loadTaf(icao);
+  if (document.getElementById(`taf-${icao}`)) renderTaf(icao, data);
+}
+
 
 
 
@@ -1032,6 +1218,46 @@ aplicarTema(leerLS('tema', 'oscuro'));
 pintarHistorial();
 pintarTablero();
 setInterval(() => tablero.forEach(t => cargarTarjeta(t.icao)), REFRESCO_MIN * 60 * 1000);
+/* ============ SERVICE WORKER — registro + auto-update ============ */
+if ('serviceWorker' in navigator){
+  // Escuchar mensajes del SW (SW_UPDATED cuando se activa uno nuevo)
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data?.type === 'SW_UPDATED')
+      document.getElementById('updateBanner').classList.add('visible');
+  });
+
+  // Recargar automáticamente cuando el SW toma control
+  // (cubre el caso PWA instalada que se abre desde el ícono)
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing){ refreshing = true; window.location.reload(); }
+  });
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => {
+        // Ya hay un SW esperando (tab abierta con versión vieja)
+        if (reg.waiting)
+          document.getElementById('updateBanner').classList.add('visible');
+
+        // SW nuevo encontrado mientras la página está abierta
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller)
+              document.getElementById('updateBanner').classList.add('visible');
+          });
+        });
+
+        // Revisar si hay actualización cada vez que la app vuelve al foco
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update();
+        });
+      })
+      .catch(err => console.warn('SW:', err));
+  });
+}
+
 </script>
 </body>
 </html>
