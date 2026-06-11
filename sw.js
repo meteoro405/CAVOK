@@ -1,9 +1,9 @@
-/* CAVOK Service Worker v24
+/* CAVOK Service Worker v26
    Estrategia: Network-first para index.html (siempre actualizado),
    Cache-first para assets pesados (pistas.js, aeropuertos_mundo.js, íconos).
    Las llamadas a CheckWX y Google Fonts van siempre a la red. */
 
-const CACHE = 'cavok-v24';
+const CACHE = 'cavok-v26';
 
 // Assets pesados — raramente cambian, se sirven desde caché
 const ASSETS = [

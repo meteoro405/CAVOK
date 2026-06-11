@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v25</title>
+<title>CAVOK · Meteo Aeronáutica v26</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -403,13 +403,16 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v25</b> by Meteoro405 · Los reportes se actualizan cada 30–60 min
+  <b>CAVOK <span id="appVersion"></span></b> by Meteoro405 · Los reportes se actualizan cada 30–60 min
 </footer>
 
 <script src="aeropuertos_mundo.js"></script>
 <script src="pistas.js"></script>
 <script>
 'use strict';
+
+const APP_VERSION = 'v26';
+document.getElementById('appVersion').textContent = APP_VERSION;
 
 
 
@@ -463,7 +466,7 @@ window.addEventListener('appinstalled', () => {
 
 
 /* =====================================================
-   CAVOK v24 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v26 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
