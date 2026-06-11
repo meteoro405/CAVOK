@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v20</title>
+<title>CAVOK · Meteo Aeronáutica v21</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -268,6 +268,8 @@ header .acciones{display:flex; gap:8px; align-items:center; flex:none}
 
 
 .techo{font-size:12px; color:var(--muted); font-style:italic}
+.alerta-meteo{background:rgba(235,183,72,.07)}
+.alerta-txt{font-size:14px !important; color:var(--mvfr)}
 .tarjeta code{
   display:block; margin-top:7px; font-family:var(--f-mono); font-size:13px;
   word-break:break-all; color:var(--texto); background:var(--panel2);
@@ -351,7 +353,7 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v20</b> · Los reportes se actualizan cada 30–60 min
+  <b>CAVOK v21</b> · Los reportes se actualizan cada 30–60 min
 </footer>
 
 <script src="aeropuertos_mundo.js"></script>
@@ -456,7 +458,7 @@ if ('serviceWorker' in navigator){
 }
 
 /* =====================================================
-   CAVOK v20 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v21 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -770,6 +772,45 @@ async function cargarTarjeta(icao, forzar = false){
   const temp = data.temperature?.celsius != null ? `${data.temperature.celsius}°C` : '—';
   const hum  = data.humidity != null ? `${typeof data.humidity==='object' ? data.humidity.percent : data.humidity}%` : '—';
 
+
+  // Punto de rocío
+  const td = data.dewpoint?.celsius ?? null;
+  const tdStr = td != null ? `${td}°C` : '—';
+
+  // Sensación térmica
+  let sensacion = '—';
+  const tC = data.temperature?.celsius;
+  const windKph = data.wind?.speed_kts != null ? data.wind.speed_kts * 1.852 : null;
+  if (tC != null){
+    const humPct = typeof data.humidity === 'object' ? data.humidity?.percent : data.humidity;
+    if (tC >= 27 && humPct != null && humPct >= 40){
+      // Índice de calor (Rothfusz, °C)
+      const T = tC, H = humPct;
+      let hi = -8.78469475556 + 1.61139411*T + 2.33854883889*H
+               - 0.14611605*T*H - 0.012308094*T*T - 0.0164248277778*H*H
+               + 0.002211732*T*T*H + 0.00072546*T*H*H - 0.000003582*T*T*H*H;
+      sensacion = `${Math.round(hi)}°C`;
+    } else if (tC <= 10 && windKph != null && windKph > 4.8){
+      // Wind chill (fórmula canadiense)
+      const wc = 13.12 + 0.6215*tC - 11.37*Math.pow(windKph,0.16) + 0.3965*tC*Math.pow(windKph,0.16);
+      sensacion = `${Math.round(wc)}°C`;
+    } else {
+      sensacion = `${tC}°C`;   // sin ajuste
+    }
+  }
+
+  // Alertas: niebla / helada
+  const alertas = [];
+  if (td != null && tC != null){
+    const dif = tC - td;
+    if (dif <= 2.5) alertas.push('⚠️ Riesgo de niebla');
+    else if (dif <= 5) alertas.push('〰️ Posible niebla');
+  }
+  if (td != null && td <= 0) alertas.push('🧊 Riesgo de helada');
+  const alertaHtml = alertas.length
+    ? `<div class='metrica ancha alerta-meteo'><div class='et'>⚡ CONDICIONES</div><div class='val alerta-txt'>${alertas.join(' · ')}</div></div>`
+    : '';
+
   let viento = '—';
   if (data.wind){
     const vel = data.wind.speed_kts != null ? `${data.wind.speed_kts} kt` : '';
@@ -836,10 +877,13 @@ async function cargarTarjeta(icao, forzar = false){
     <div class="metricas">
       <div class="metrica"><div class="et">🌡 Temperatura</div><div class="val">${esc(temp)}</div></div>
       <div class="metrica"><div class="et">💧 Humedad</div><div class="val">${esc(hum)}</div></div>
+      <div class="metrica"><div class="et">🌡 Sensación</div><div class="val">${esc(sensacion)}</div></div>
+      <div class="metrica"><div class="et">❄️ Pto. rocío</div><div class="val">${esc(tdStr)}</div></div>
       <div class="metrica"><div class="et">💨 Viento</div><div class="val">${esc(viento)}</div></div>
       <div class="metrica"><div class="et">👁 Visibilidad</div><div class="val">${esc(vis)}</div></div>
       <div class="metrica ancha"><div class="et">☁️ Nubes</div><div class="val">${esc(nubes)}${techoHtml}</div></div>
       <div class="metrica ancha"><div class="et">🔵 Presión</div><div class="val">${esc(presion)}</div></div>
+      ${alertaHtml}
     </div>
     ${renderPistas(icao, data)}
     <details>
