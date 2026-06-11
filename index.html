@@ -3,9 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v8</title>
+<title>CAVOK · Meteo Aeronáutica v11</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F5B941">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CAVOK">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F5B941">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CAVOK">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -42,6 +56,29 @@ button{font-family:inherit; cursor:pointer}
 :focus-visible{outline:2px solid var(--amarillo); outline-offset:2px}
 @media (prefers-reduced-motion:reduce){ *{transition:none !important; animation:none !important} }
 
+
+/* ============ BANNER INSTALACIÓN PWA ============ */
+.pwa-banner{
+  display:none; align-items:center; gap:12px;
+  background:var(--amarillo); color:#0C1220;
+  padding:11px 18px; font-size:14px; font-weight:500;
+  border-bottom:2px solid #E2A82B;
+}
+.pwa-banner.visible{display:flex}
+.pwa-banner .pwa-icono{font-size:22px; flex:none}
+.pwa-banner .pwa-texto{flex:1; line-height:1.3}
+.pwa-banner .pwa-texto small{display:block; font-size:11.5px; opacity:.7; font-weight:400}
+.pwa-btn-instalar{
+  background:#0C1220; color:var(--amarillo); border:none;
+  border-radius:8px; padding:8px 14px; font-size:13px; font-weight:600;
+  font-family:inherit; cursor:pointer; white-space:nowrap; flex:none;
+}
+.pwa-btn-instalar:hover{background:#1B2540}
+.pwa-btn-cerrar{
+  background:none; border:none; color:#0C1220; font-size:18px;
+  cursor:pointer; padding:4px; opacity:.6; flex:none;
+}
+.pwa-btn-cerrar:hover{opacity:1}
 /* ============ HEADER ============ */
 header{
   display:flex; align-items:center; justify-content:space-between;
@@ -239,6 +276,15 @@ footer b{color:var(--texto)}
   </div>
 </header>
 
+<div class="pwa-banner" id="pwaBanner" role="alert" aria-live="polite">
+  <span class="pwa-icono">✈️</span>
+  <div class="pwa-texto">
+    Instalá CAVOK en tu pantalla de inicio
+    <small>Acceso rápido sin abrir el navegador</small>
+  </div>
+  <button class="pwa-btn-instalar" id="pwaBtnInstalar">Instalar</button>
+  <button class="pwa-btn-cerrar" id="pwaBtnCerrar" aria-label="Cerrar">✕</button>
+</div>
 <section class="buscador-zona">
   <div class="buscador">
     <input id="inputCiudad" type="text" autocomplete="off" spellcheck="false"
@@ -252,16 +298,71 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v8</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
+  <b>CAVOK v11</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
   · Los reportes se actualizan cada 30–60 min · Caché horaria local
 </footer>
 
+<script src="aeropuertos_mundo.js"></script>
 <script src="pistas.js"></script>
 <script>
 'use strict';
 
+
 /* =====================================================
-   CAVOK v8 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   PWA — Instalación + recordatorio periódico
+   Recordatorio: si el usuario cerró el banner, 
+   vuelve a aparecer a los 3 días.
+===================================================== */
+const PWA_POSPONER_DIAS = 3;
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  mostrarBannerSiCorresponde();
+});
+
+function mostrarBannerSiCorresponde(){
+  if (deferredPrompt === null) return;
+  // No mostrar si ya está instalada
+  if (window.matchMedia('(display-mode: standalone)').matches) return;
+  const pospostaTipo = leerLS('pwa_posponer', null);
+  if (pospostaTipo){
+    const diasPasados = (Date.now() - pospostaTipo) / (1000 * 60 * 60 * 24);
+    if (diasPasados < PWA_POSPONER_DIAS) return;
+  }
+  document.getElementById('pwaBanner').classList.add('visible');
+}
+
+document.getElementById('pwaBtnInstalar').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('pwaBanner').classList.remove('visible');
+  if (outcome === 'accepted') guardarLS('pwa_posponer', null);
+});
+
+document.getElementById('pwaBtnCerrar').addEventListener('click', () => {
+  document.getElementById('pwaBanner').classList.remove('visible');
+  guardarLS('pwa_posponer', Date.now());   // recordar en 3 días
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('pwaBanner').classList.remove('visible');
+  deferredPrompt = null;
+});
+
+// Registrar el service worker
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .catch(err => console.warn('SW no registrado:', err));
+  });
+}
+
+/* =====================================================
+   CAVOK v11 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -275,146 +376,7 @@ const REFRESCO_MIN = 30;             // auto-actualización (minutos)
    ⚠ Corregidos respecto al doc original:
    Formosa SARF · Resistencia SARE · Santa Rosa SAZR
    Esquel SAVE · San Luis SAOU · Puerto Madryn SAVY  */
-const AEROPUERTOS = [
-  { ciudad:'Buenos Aires · Aeroparque', icao:'SABE', alias:['buenos aires','caba','capital','aeroparque','jorge newbery'] },
-  { ciudad:'Buenos Aires · Ezeiza',     icao:'SAEZ', alias:['buenos aires','ezeiza','ministro pistarini'] },
-  { ciudad:'Buenos Aires · El Palomar', icao:'SADP', alias:['buenos aires','el palomar','palomar','hurlingham'] },
-  { ciudad:'Buenos Aires · Morón',      icao:'SADM', alias:['buenos aires','moron'] },
-  { ciudad:'Buenos Aires · San Fernando', icao:'SADF', alias:['buenos aires','san fernando'] },
-  { ciudad:'Bahía Blanca',              icao:'SAZB', alias:['bahia blanca'] },
-  { ciudad:'Bariloche',                 icao:'SAZS', alias:['san carlos de bariloche'] },
-  { ciudad:'Catamarca',                 icao:'SANC', alias:['san fernando del valle'] },
-  { ciudad:'Comodoro Rivadavia',        icao:'SAVC', alias:[] },
-  { ciudad:'Córdoba',                   icao:'SACO', alias:['cordoba','pajas blancas'] },
-  { ciudad:'Corrientes',                icao:'SARC', alias:[] },
-  { ciudad:'El Calafate',               icao:'SAWC', alias:['calafate'] },
-  { ciudad:'Esquel',                    icao:'SAVE', alias:[] },
-  { ciudad:'Formosa',                   icao:'SARF', alias:[] },
-  { ciudad:'La Rioja',                  icao:'SANL', alias:[] },
-  { ciudad:'Mar del Plata',             icao:'SAZM', alias:['mardel'] },
-  { ciudad:'Mendoza',                   icao:'SAME', alias:['el plumerillo'] },
-  { ciudad:'Neuquén',                   icao:'SAZN', alias:['neuquen'] },
-  { ciudad:'Posadas',                   icao:'SARP', alias:[] },
-  { ciudad:'Puerto Iguazú',             icao:'SARI', alias:['iguazu','cataratas'] },
-  { ciudad:'Puerto Madryn',             icao:'SAVY', alias:['madryn'] },
-  { ciudad:'Resistencia',               icao:'SARE', alias:[] },
-  { ciudad:'Río Cuarto',                icao:'SAOC', alias:['rio cuarto'] },
-  { ciudad:'Río Gallegos',              icao:'SAWG', alias:['rio gallegos'] },
-  { ciudad:'Rosario',                   icao:'SAAR', alias:[] },
-  { ciudad:'Salta',                     icao:'SASA', alias:[] },
-  { ciudad:'San Juan',                  icao:'SANU', alias:[] },
-  { ciudad:'San Luis',                  icao:'SAOU', alias:[] },
-  { ciudad:'San Martín de los Andes',   icao:'SAZY', alias:['chapelco','san martin de los andes'] },
-  { ciudad:'San Salvador de Jujuy',     icao:'SASJ', alias:['jujuy'] },
-  { ciudad:'Santa Fe',                  icao:'SAAV', alias:['sauce viejo'] },
-  { ciudad:'Santa Rosa (La Pampa)',     icao:'SAZR', alias:['santa rosa','la pampa'] },
-  { ciudad:'Santiago del Estero',       icao:'SANE', alias:[] },
-  { ciudad:'Trelew / Rawson',           icao:'SAVT', alias:['trelew','rawson'] },
-  { ciudad:'Tucumán',                   icao:'SANT', alias:['tucuman','san miguel de tucuman'] },
-  { ciudad:'Ushuaia',                   icao:'SAWH', alias:[] },
-  { ciudad:'Viedma',                    icao:'SAVV', alias:[] },
-
-  /* ---- Sudamérica ---- */
-  { ciudad:'Santiago de Chile (CL)',    icao:'SCEL', alias:['santiago','chile','pudahuel','merino benitez'] },
-  { ciudad:'Antofagasta (CL)',          icao:'SCFA', alias:[] },
-  { ciudad:'Calama (CL)',               icao:'SCCF', alias:['san pedro de atacama'] },
-  { ciudad:'Iquique (CL)',              icao:'SCDA', alias:[] },
-  { ciudad:'La Serena (CL)',            icao:'SCSE', alias:[] },
-  { ciudad:'Concepción (CL)',           icao:'SCIE', alias:['concepcion'] },
-  { ciudad:'Puerto Montt (CL)',         icao:'SCTE', alias:[] },
-  { ciudad:'Balmaceda / Coyhaique (CL)',icao:'SCBA', alias:['coyhaique','balmaceda'] },
-  { ciudad:'Punta Arenas (CL)',         icao:'SCCI', alias:[] },
-  { ciudad:'Montevideo (UY)',           icao:'SUMU', alias:['carrasco','uruguay'] },
-  { ciudad:'Punta del Este (UY)',       icao:'SULS', alias:['laguna del sauce'] },
-  { ciudad:'Asunción (PY)',             icao:'SGAS', alias:['asuncion','paraguay'] },
-  { ciudad:'La Paz (BO)',               icao:'SLLP', alias:['el alto','bolivia'] },
-  { ciudad:'Santa Cruz de la Sierra (BO)', icao:'SLVR', alias:['viru viru'] },
-  { ciudad:'Lima (PE)',                 icao:'SPJC', alias:['jorge chavez','peru','spim'] },
-  { ciudad:'Cusco (PE)',                icao:'SPZO', alias:['cuzco','machu picchu'] },
-  { ciudad:'Bogotá (CO)',               icao:'SKBO', alias:['bogota','el dorado','colombia'] },
-  { ciudad:'Medellín (CO)',             icao:'SKRG', alias:['medellin','rionegro'] },
-  { ciudad:'Cartagena (CO)',            icao:'SKCG', alias:[] },
-  { ciudad:'Quito (EC)',                icao:'SEQM', alias:['ecuador','mariscal sucre'] },
-  { ciudad:'Guayaquil (EC)',            icao:'SEGU', alias:[] },
-  { ciudad:'Caracas (VE)',              icao:'SVMI', alias:['maiquetia','venezuela'] },
-  { ciudad:'São Paulo · Guarulhos (BR)',icao:'SBGR', alias:['sao paulo','san pablo','brasil'] },
-  { ciudad:'São Paulo · Congonhas (BR)',icao:'SBSP', alias:['sao paulo','congonhas'] },
-  { ciudad:'Río de Janeiro · Galeão (BR)', icao:'SBGL', alias:['rio de janeiro','galeao'] },
-  { ciudad:'Río de Janeiro · Santos Dumont (BR)', icao:'SBRJ', alias:['rio de janeiro','santos dumont'] },
-  { ciudad:'Brasilia (BR)',             icao:'SBBR', alias:[] },
-  { ciudad:'Florianópolis (BR)',        icao:'SBFL', alias:['florianopolis','floripa'] },
-  { ciudad:'Porto Alegre (BR)',         icao:'SBPA', alias:[] },
-  { ciudad:'Curitiba (BR)',             icao:'SBCT', alias:[] },
-  { ciudad:'Foz do Iguaçu (BR)',        icao:'SBFI', alias:['foz de iguazu'] },
-
-  /* ---- Norteamérica ---- */
-  { ciudad:'Nueva York · JFK (US)',     icao:'KJFK', alias:['new york','nueva york'] },
-  { ciudad:'Nueva York · Newark (US)',  icao:'KEWR', alias:['new york','newark'] },
-  { ciudad:'Nueva York · LaGuardia (US)', icao:'KLGA', alias:['new york','laguardia'] },
-  { ciudad:'Miami (US)',                icao:'KMIA', alias:[] },
-  { ciudad:'Orlando (US)',              icao:'KMCO', alias:['disney'] },
-  { ciudad:'Los Ángeles (US)',          icao:'KLAX', alias:['los angeles'] },
-  { ciudad:'San Francisco (US)',        icao:'KSFO', alias:[] },
-  { ciudad:'Las Vegas (US)',            icao:'KLAS', alias:[] },
-  { ciudad:'Chicago · O\'Hare (US)',    icao:'KORD', alias:['ohare'] },
-  { ciudad:'Atlanta (US)',              icao:'KATL', alias:[] },
-  { ciudad:'Dallas (US)',               icao:'KDFW', alias:['fort worth'] },
-  { ciudad:'Houston (US)',              icao:'KIAH', alias:[] },
-  { ciudad:'Washington · Dulles (US)',  icao:'KIAD', alias:[] },
-  { ciudad:'Boston (US)',               icao:'KBOS', alias:[] },
-  { ciudad:'Seattle (US)',              icao:'KSEA', alias:[] },
-  { ciudad:'Denver (US)',               icao:'KDEN', alias:[] },
-  { ciudad:'Toronto (CA)',              icao:'CYYZ', alias:['pearson','canada'] },
-  { ciudad:'Vancouver (CA)',            icao:'CYVR', alias:[] },
-  { ciudad:'Montreal (CA)',             icao:'CYUL', alias:[] },
-  { ciudad:'Ciudad de México (MX)',     icao:'MMMX', alias:['mexico','cdmx','benito juarez'] },
-  { ciudad:'Cancún (MX)',               icao:'MMUN', alias:['cancun'] },
-
-  /* ---- Europa ---- */
-  { ciudad:'Madrid · Barajas (ES)',     icao:'LEMD', alias:['espana','españa','barajas'] },
-  { ciudad:'Barcelona (ES)',            icao:'LEBL', alias:['el prat'] },
-  { ciudad:'Lisboa (PT)',               icao:'LPPT', alias:['portugal'] },
-  { ciudad:'París · Charles de Gaulle (FR)', icao:'LFPG', alias:['paris','francia'] },
-  { ciudad:'París · Orly (FR)',         icao:'LFPO', alias:['paris','orly'] },
-  { ciudad:'Londres · Heathrow (GB)',   icao:'EGLL', alias:['london','londres','inglaterra'] },
-  { ciudad:'Londres · Gatwick (GB)',    icao:'EGKK', alias:['london','gatwick'] },
-  { ciudad:'Roma · Fiumicino (IT)',     icao:'LIRF', alias:['roma','italia'] },
-  { ciudad:'Milán · Malpensa (IT)',     icao:'LIMC', alias:['milan'] },
-  { ciudad:'Frankfurt (DE)',            icao:'EDDF', alias:['alemania'] },
-  { ciudad:'Múnich (DE)',               icao:'EDDM', alias:['munich','munchen'] },
-  { ciudad:'Ámsterdam (NL)',            icao:'EHAM', alias:['amsterdam','schiphol','holanda'] },
-  { ciudad:'Zúrich (CH)',               icao:'LSZH', alias:['zurich','suiza'] },
-  { ciudad:'Ginebra (CH)',              icao:'LSGG', alias:['geneva'] },
-  { ciudad:'Viena (AT)',                icao:'LOWW', alias:['austria'] },
-  { ciudad:'Estambul (TR)',             icao:'LTFM', alias:['istanbul','turquia'] },
-  { ciudad:'Atenas (GR)',               icao:'LGAV', alias:['grecia'] },
-  { ciudad:'Dublín (IE)',               icao:'EIDW', alias:['dublin','irlanda'] },
-  { ciudad:'Copenhague (DK)',           icao:'EKCH', alias:['dinamarca'] },
-  { ciudad:'Estocolmo (SE)',            icao:'ESSA', alias:['arlanda','suecia'] },
-  { ciudad:'Oslo (NO)',                 icao:'ENGM', alias:['noruega'] },
-
-  /* ---- Medio Oriente · Asia · Oceanía · África ---- */
-  { ciudad:'Dubái (AE)',                icao:'OMDB', alias:['dubai','emiratos'] },
-  { ciudad:'Abu Dabi (AE)',             icao:'OMAA', alias:['abu dhabi'] },
-  { ciudad:'Doha (QA)',                 icao:'OTHH', alias:['qatar','catar'] },
-  { ciudad:'Tel Aviv (IL)',             icao:'LLBG', alias:['israel','ben gurion'] },
-  { ciudad:'Tokio · Narita (JP)',       icao:'RJAA', alias:['tokyo','tokio','japon'] },
-  { ciudad:'Tokio · Haneda (JP)',       icao:'RJTT', alias:['tokyo','haneda'] },
-  { ciudad:'Seúl · Incheon (KR)',       icao:'RKSI', alias:['seul','seoul','corea'] },
-  { ciudad:'Pekín (CN)',                icao:'ZBAA', alias:['beijing','pekin','china'] },
-  { ciudad:'Shanghái · Pudong (CN)',    icao:'ZSPD', alias:['shanghai'] },
-  { ciudad:'Hong Kong (HK)',            icao:'VHHH', alias:[] },
-  { ciudad:'Singapur (SG)',             icao:'WSSS', alias:['singapore','changi'] },
-  { ciudad:'Bangkok (TH)',              icao:'VTBS', alias:['tailandia','suvarnabhumi'] },
-  { ciudad:'Nueva Delhi (IN)',          icao:'VIDP', alias:['delhi','india'] },
-  { ciudad:'Bombay (IN)',               icao:'VABB', alias:['mumbai'] },
-  { ciudad:'Sídney (AU)',               icao:'YSSY', alias:['sydney','sidney','australia'] },
-  { ciudad:'Melbourne (AU)',            icao:'YMML', alias:[] },
-  { ciudad:'Auckland (NZ)',             icao:'NZAA', alias:['nueva zelanda'] },
-  { ciudad:'Johannesburgo (ZA)',        icao:'FAOR', alias:['johannesburg','sudafrica'] },
-  { ciudad:'El Cairo (EG)',             icao:'HECA', alias:['cairo','egipto'] },
-  { ciudad:'Casablanca (MA)',           icao:'GMMN', alias:['marruecos'] }
-];
+// AEROPUERTOS cargado desde aeropuertos_mundo.js
 
 /* ---------- Semáforo flight_category ---------- */
 const CAT_COLOR = { VFR:'var(--vfr)', MVFR:'var(--mvfr)', IFR:'var(--ifr)', LIFR:'var(--lifr)' };

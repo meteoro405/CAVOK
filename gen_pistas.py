@@ -28,11 +28,15 @@ def num(v):
         return None
 
 def main():
-    # 1) ICAOs desde index.html
-    html = open(ARCHIVO_HTML, encoding='utf-8').read()
-    icaos = set(re.findall(r"icao:'([A-Z]{4})'", html))
+    # ICAOs desde aeropuertos_mundo.js (preferido) o index.html
+    import os
+    if os.path.exists('aeropuertos_mundo.js'):
+        fuente = open('aeropuertos_mundo.js', encoding='utf-8').read()
+    else:
+        fuente = open(ARCHIVO_HTML, encoding='utf-8').read()
+    icaos = set(re.findall(r"icao:'([A-Z]{4})'", fuente))
     if not icaos:
-        sys.exit('ERROR: no se encontraron ICAO en index.html')
+        sys.exit('ERROR: no se encontraron ICAO')
     print(f'ICAOs en la tabla local: {len(icaos)}')
     # mapa inverso: ICAO OurAirports → ICAO de la app
     inverso = {v: k for k, v in EQUIVALENCIAS.items()}
