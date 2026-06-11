@@ -2503,6 +2503,10 @@ const AEROPUERTOS = [
   { ciudad:'Viedma / Carmen de Patagones (AR)', icao:'SAVV', alias:["argentina", "gobernador castello"] },
   { ciudad:'Villa Maria (AR)', icao:'SAOV', alias:["argentina", "presidente nestor kirchner", "presidente néstor kirchner"] },
 
+  /* AMBA — aeropuertos no comerciales con METAR */
+  { ciudad:'Buenos Aires · El Palomar', icao:'SADP', alias:["el palomar","palomar","hurlingham","buenos aires"] },
+  { ciudad:'Buenos Aires · Morón',      icao:'SADM', alias:["moron","morón","buenos aires"] },
+  { ciudad:'Buenos Aires · San Fernando', icao:'SADF', alias:["san fernando","buenos aires"] },
   /* SB */
   { ciudad:'Alta Floresta (BR)', icao:'SBAT', alias:["brasil", "piloto osvaldo marques dias"] },
   { ciudad:'Altamira (BR)', icao:'SBHT', alias:["altamira interstate", "brasil"] },

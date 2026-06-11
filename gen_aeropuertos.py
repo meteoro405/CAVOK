@@ -93,7 +93,7 @@ def main():
             icao = (r['icao_code'] or r['ident'] or '').strip()
             if not icao or len(icao) != 4 or not icao[0].isalpha():
                 continue
-            if r['scheduled_service'] != 'yes' and r['type'] != 'large_airport':
+            if r['scheduled_service'] != 'yes' and r['type'] != 'large_airport' and icao not in ('SADP','SADM','SADF'):
                 continue
             candidatos.append(r)
 
