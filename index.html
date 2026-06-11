@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v18</title>
+<title>CAVOK · Meteo Aeronáutica v19</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -247,9 +247,12 @@ footer{
 footer b{color:var(--texto)}
 
 @media (max-width:560px){
-  header{padding:14px 16px}
-  .titulos h1{font-size:23px}
-    .buscador-zona, .tablero{padding:0 14px}
+  header{padding:14px 16px; justify-content:center}
+  .bloque-logo{align-items:center; width:100%}
+  .titulos{text-align:center}
+  .titulos h1{font-size:26px}
+  header .acciones{position:absolute; right:16px; top:16px}
+  .buscador-zona, .tablero{padding:0 14px}
 }
 </style>
 </head>
@@ -298,8 +301,7 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v18</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
-  · Los reportes se actualizan cada 30–60 min · Caché horaria local
+  <b>CAVOK v19</b> · Los reportes se actualizan cada 30–60 min
 </footer>
 
 <script src="aeropuertos_mundo.js"></script>
@@ -362,7 +364,7 @@ if ('serviceWorker' in navigator){
 }
 
 /* =====================================================
-   CAVOK v18 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v19 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -625,7 +627,7 @@ function pintarTablero(){
     $tablero.innerHTML = `
       <div class="vacio">
         <p><b>Tablero vacío.</b></p>
-        <p>Buscá una ciudad argentina o un código ICAO para ver sus condiciones.</p>
+        <p>Buscá una ciudad o un código ICAO para ver sus condiciones.</p>
         <p style="margin-top:8px">Podés agregar varios aeropuertos y compararlos.</p>
       </div>`;
     return;
