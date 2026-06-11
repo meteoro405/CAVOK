@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v17</title>
+<title>CAVOK · Meteo Aeronáutica v18</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -298,7 +298,7 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v17</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
+  <b>CAVOK v18</b> · Datos METAR de <a href="https://www.checkwx.com" target="_blank" rel="noopener" style="color:inherit">CheckWX</a>
   · Los reportes se actualizan cada 30–60 min · Caché horaria local
 </footer>
 
@@ -362,7 +362,7 @@ if ('serviceWorker' in navigator){
 }
 
 /* =====================================================
-   CAVOK v17 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v18 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -692,6 +692,7 @@ async function cargarTarjeta(icao, forzar = false){
   }
 
   let nubes = '—';
+  let techoHtml = '';   // siempre definido, se sobreescribe si hay nubes
   if (data.clouds?.length){
     // Prioridad de condición: OVC > BKN > SCT > FEW > resto
     const PRIO = { OVC:5, VV:5, BKN:4, SCT:3, FEW:2 };
@@ -721,7 +722,7 @@ async function cargarTarjeta(icao, forzar = false){
       .map(c => c.alt ? `${c.txt} (${c.alt.toLocaleString('es-AR')} ft)` : c.txt)
       .join(' · ');
     // techoHtml se inserta sin escapar en el template
-    var techoHtml = techoFt
+    techoHtml = techoFt
       ? `<span class='techo'> · Techo ${techoFt.toLocaleString('es-AR')} ft (${techoM} m)</span>`
       : '';
   }
