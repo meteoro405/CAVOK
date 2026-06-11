@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v19</title>
+<title>CAVOK · Meteo Aeronáutica v20</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -57,6 +57,43 @@ button{font-family:inherit; cursor:pointer}
 @media (prefers-reduced-motion:reduce){ *{transition:none !important; animation:none !important} }
 
 
+
+/* ============ BANNER ACTUALIZACIÓN SW ============ */
+.sw-update-banner{
+  display:none; align-items:center; gap:12px;
+  background:#1B2540; color:var(--texto);
+  padding:10px 18px; font-size:13px;
+  border-bottom:2px solid var(--amarillo);
+}
+.sw-update-banner.visible{display:flex}
+.sw-update-banner .sw-texto{flex:1}
+.sw-btn-actualizar{
+  background:var(--amarillo); color:#0C1220; border:none;
+  border-radius:7px; padding:7px 14px; font-size:13px; font-weight:700;
+  font-family:inherit; cursor:pointer; white-space:nowrap;
+}
+.sw-btn-actualizar:hover{opacity:.85}
+
+/* ============ BANNER ACTUALIZACIÓN ============ */
+.update-banner{
+  display:none; align-items:center; gap:12px;
+  background:#1B2540; color:var(--texto);
+  padding:10px 18px; font-size:13px;
+  border-bottom:2px solid var(--amarillo);
+}
+.update-banner.visible{display:flex}
+.update-banner .upd-txt{flex:1}
+.update-banner .upd-txt b{color:var(--amarillo)}
+.btn-update{
+  background:var(--amarillo); color:#0C1220; border:none;
+  border-radius:7px; padding:7px 14px; font-size:13px;
+  font-weight:700; font-family:inherit; cursor:pointer; flex:none;
+}
+.btn-update:hover{opacity:.9}
+.btn-upd-cerrar{
+  background:none; border:none; color:var(--muted);
+  font-size:17px; cursor:pointer; padding:4px; flex:none;
+}
 /* ============ BANNER INSTALACIÓN PWA ============ */
 .pwa-banner{
   display:none; align-items:center; gap:12px;
@@ -184,6 +221,9 @@ header .acciones{display:flex; gap:8px; align-items:center; flex:none}
 }
 .tarjeta-cab .ciudad{font-family:var(--f-display); font-weight:600; font-size:22px; line-height:1.15}
 .tarjeta-cab .observado{font-size:13px; color:var(--muted)}
+.obs-fresco  {color:#3FC97E !important}
+.obs-viejo   {color:#EBB748 !important}
+.obs-obsoleto{color:#EF6363 !important}
 .tarjeta-cab .botones{margin-left:auto; display:flex; gap:4px}
 .btn-ico{
   background:none; border:none; color:var(--muted); font-size:17px;
@@ -279,6 +319,16 @@ footer b{color:var(--texto)}
   </div>
 </header>
 
+<div class="sw-update-banner" id="swUpdateBanner">
+  <span class="sw-texto">✨ Nueva versión de CAVOK disponible</span>
+  <button class="sw-btn-actualizar" onclick="window.location.reload()">Actualizar</button>
+</div>
+<div class="update-banner" id="updateBanner">
+  <span>✈</span>
+  <div class="upd-txt"><b>Nueva versión disponible</b> — Actualizá para ver los últimos cambios</div>
+  <button class="btn-update" id="btnUpdate">Actualizar</button>
+  <button class="btn-upd-cerrar" id="btnUpdateCerrar">✕</button>
+</div>
 <div class="pwa-banner" id="pwaBanner" role="alert" aria-live="polite">
   <span class="pwa-icono">✈️</span>
   <div class="pwa-texto">
@@ -301,7 +351,7 @@ footer b{color:var(--texto)}
 <main class="tablero" id="tablero"></main>
 
 <footer>
-  <b>CAVOK v19</b> · Los reportes se actualizan cada 30–60 min
+  <b>CAVOK v20</b> · Los reportes se actualizan cada 30–60 min
 </footer>
 
 <script src="aeropuertos_mundo.js"></script>
@@ -309,8 +359,41 @@ footer b{color:var(--texto)}
 <script>
 'use strict';
 
+/* ============ ACTUALIZACIÓN SW ============ */
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data?.type === 'SW_UPDATED'){
+      document.getElementById('updateBanner').classList.add('visible');
+    }
+  });
+  navigator.serviceWorker.ready.then(reg => {
+    if (reg.waiting){
+      document.getElementById('updateBanner').classList.add('visible');
+    }
+    reg.addEventListener('updatefound', () => {
+      const newSW = reg.installing;
+      newSW.addEventListener('statechange', () => {
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller){
+          document.getElementById('updateBanner').classList.add('visible');
+        }
+      });
+    });
+  });
+}
+document.getElementById('btnUpdate').addEventListener('click', () => {
+  navigator.serviceWorker.ready.then(reg => {
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+  });
+  window.location.reload();
+});
+document.getElementById('btnUpdateCerrar').addEventListener('click', () => {
+  document.getElementById('updateBanner').classList.remove('visible');
+});
+
 
 /* =====================================================
+
+
    PWA — Instalación + recordatorio periódico
    Recordatorio: si el usuario cerró el banner, 
    vuelve a aparecer a los 3 días.
@@ -358,13 +441,22 @@ window.addEventListener('appinstalled', () => {
 // Registrar el service worker
 if ('serviceWorker' in navigator){
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
+    navigator.serviceWorker.register('./sw.js?v=20')
       .catch(err => console.warn('SW no registrado:', err));
   });
 }
 
+// Escuchar actualizaciones del Service Worker
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data?.type === 'SW_UPDATED'){
+      document.getElementById('swUpdateBanner').classList.add('visible');
+    }
+  });
+}
+
 /* =====================================================
-   CAVOK v19 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v20 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -755,9 +847,17 @@ async function cargarTarjeta(icao, forzar = false){
       <code>${esc(data.raw_text || '—')}</code>
     </details>`;
 
-  if ($obs) $obs.textContent = data.observed
-    ? `Reporte ${haceCuanto(data.observed)}`
-    : '';
+  if ($obs){
+    if (data.observed){
+      const minutos = Math.round((Date.now() - new Date(data.observed).getTime()) / 60000);
+      const cls = minutos <= 60 ? 'obs-fresco' : minutos <= 120 ? 'obs-viejo' : 'obs-obsoleto';
+      $obs.className = `observado ${cls}`;
+      $obs.textContent = `Reporte ${haceCuanto(data.observed)}`;
+    } else {
+      $obs.className = 'observado';
+      $obs.textContent = '';
+    }
+  }
 }
 
 function refrescar(icao){ cargarTarjeta(icao, true); }
