@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v26</title>
+<title>CAVOK · Meteo Aeronáutica v27</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -411,7 +411,7 @@ footer b{color:var(--texto)}
 <script>
 'use strict';
 
-const APP_VERSION = 'v26';
+const APP_VERSION = 'v27';
 document.getElementById('appVersion').textContent = APP_VERSION;
 
 
@@ -466,7 +466,7 @@ window.addEventListener('appinstalled', () => {
 
 
 /* =====================================================
-   CAVOK v26 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v27 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -1054,12 +1054,12 @@ function renderTaf(icao, data){
   const tafBodyId = `tafbody-${esc(icao)}`;
 
   $zona.innerHTML = `
-    <div class="taf-header" onclick="this.classList.toggle('abierto');document.getElementById('${tafBodyId}').classList.toggle('visible')">
+    <div class="taf-header abierto" onclick="this.classList.toggle('abierto');document.getElementById('${tafBodyId}').classList.toggle('visible')">
       <span class="taf-arrow">▶</span>
       <span class="taf-titulo">📋 Pronóstico TAF</span>
       <span class="taf-vigencia">${esc(vigencia)}</span>
     </div>
-    <div class="taf-body" id="${tafBodyId}">
+    <div class="taf-body visible" id="${tafBodyId}">
       ${periodos}
       <div class="taf-pie">
         <span>CheckWX · Horarios UTC</span>
