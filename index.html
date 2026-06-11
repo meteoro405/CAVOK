@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v22</title>
+<title>CAVOK · Meteo Aeronáutica v24</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -463,7 +463,7 @@ window.addEventListener('appinstalled', () => {
 
 
 /* =====================================================
-   CAVOK v22 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v24 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -941,86 +941,83 @@ async function loadTaf(icao){
   } catch(e){ return null; }
 }
 
-function horaZStr(isoStr){
+function horaUTC(isoStr){
   if (!isoStr) return '—';
   try {
     const d = new Date(isoStr);
-    return `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')} Z`;
+    return `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}Z`;
   } catch(e){ return '—'; }
 }
 
 function catTaf(forecast){
-  // Determinar categoría desde visibilidad y nubes del período
-  const vis = forecast.visibility?.meters ?? 9999;
-  let peorCat = 'VFR';
   const prio = ['VFR','MVFR','IFR','LIFR'];
-  // Por nubes
+  let peorCat = 'VFR';
   (forecast.clouds || []).forEach(c => {
     const cat = CLOUD_CAT[c.code] || 'VFR';
     if (prio.indexOf(cat) > prio.indexOf(peorCat)) peorCat = cat;
   });
-  // Por visibilidad
-  let visCat = 'VFR';
-  if (vis < 1500) visCat = 'LIFR';
-  else if (vis < 3000) visCat = 'IFR';
-  else if (vis < 5000) visCat = 'MVFR';
+  const vis = forecast.visibility?.meters ?? 9999;
+  const visCat = vis < 1500 ? 'LIFR' : vis < 3000 ? 'IFR' : vis < 5000 ? 'MVFR' : 'VFR';
   if (prio.indexOf(visCat) > prio.indexOf(peorCat)) peorCat = visCat;
   return peorCat;
 }
 
-function renderTafPeriodo(f, tipo){
-  const tipoClase = { FM:'tipo-from', TEMPO:'tipo-tempo', BECMG:'tipo-becmg',
-                      PROB30:'tipo-prob', PROB40:'tipo-prob', BASE:'tipo-from' };
-  const tipoLabel = { FM:'FROM', TEMPO:'TEMPO', BECMG:'BECMG',
-                      PROB30:'PROB 30%', PROB40:'PROB 40%', BASE:'BASE' };
-
+function renderTafPeriodo(f){
+  const codigo = f.change?.code || 'FM';
+  const tipoClase = { INITIAL:'tipo-from', FM:'tipo-from', TEMPO:'tipo-tempo',
+                      BECMG:'tipo-becmg', PROB30:'tipo-prob', PROB40:'tipo-prob' };
+  const tipoLabel = { INITIAL:'BASE', FM:'FROM', TEMPO:'TEMPO',
+                      BECMG:'BECMG', PROB30:'PROB 30%', PROB40:'PROB 40%' };
   const cat = catTaf(f);
   const catCls = `taf-cat-${cat.toLowerCase()}`;
 
-  // Hora
-  const desde = horaZStr(f.timestamp?.from || f.period?.df);
-  const hasta = horaZStr(f.timestamp?.to   || f.period?.dt);
-  const horaHtml = `${desde}<br><span class="taf-sub">→ ${hasta}</span>`;
+  // v2: change.period.from / change.period.to
+  const desde = horaUTC(f.change?.period?.from);
+  const hasta = f.change?.period?.to ? horaUTC(f.change.period.to) : '';
+  const horaHtml = hasta
+    ? `${desde}<br><span class="taf-sub">→ ${hasta}</span>`
+    : desde;
 
-  // Viento
+  // Viento — v2: wind.speed.kts, wind.gust.kts
   let vientoStr = '';
   if (f.wind){
-    const vel = f.wind.speed_kts != null ? `${f.wind.speed_kts} kt` : '';
-    const gust = f.wind.gust_kts  != null ? ` · Rachas ${f.wind.gust_kts} kt` : '';
+    const vel  = f.wind.speed?.kts  ?? f.wind.speed_kts  ?? null;
+    const gust = f.wind.gust?.kts   ?? f.wind.gust_kts   ?? null;
     const dir  = f.wind.direction || (f.wind.degrees != null ? `${f.wind.degrees}°` : '');
-    vientoStr = [vel, dir].filter(Boolean).join(' ') + gust;
+    if (vel != null){
+      vientoStr = `${vel} kt`;
+      if (dir) vientoStr += ` ${dir}`;
+      if (gust != null) vientoStr += ` · Rachas ${gust} kt`;
+    }
   }
 
   // Visibilidad
   let visStr = '';
   if (f.visibility?.meters != null){
     const m = parseFloat(String(f.visibility.meters).replace(/[^\d.]/g,''));
-    visStr = isNaN(m) ? '' : m >= 9999 ? '+10 km' : `${(m/1000).toFixed(1)} km`;
+    if (!isNaN(m)) visStr = m >= 9999 ? '+10 km' : `${(m/1000).toFixed(1)} km`;
   }
 
   // Nubes
   let nubesStr = '';
   if (f.clouds?.length){
-    const CLOUD_TEXT2 = { SKC:'Despejado', CLR:'Despejado', NSC:'Sin nubes significativas',
-                          FEW:'Pocas nubes', SCT:'Nubes dispersas',
-                          BKN:'Mayormente nublado', OVC:'Cubierto', VV:'Cielo invisible' };
-    const porTexto2 = {};
+    const CT = { SKC:'Despejado', CLR:'Despejado', NSC:'Sin nubes significativas',
+                 FEW:'Pocas nubes', SCT:'Nubes dispersas',
+                 BKN:'Mayormente nublado', OVC:'Cubierto', VV:'Cielo invisible' };
+    const P2 = { OVC:5, VV:5, BKN:4, SCT:3, FEW:2 };
+    const pt = {};
     f.clouds.forEach(c => {
-      const txt = CLOUD_TEXT2[c.code] || c.text || c.code;
+      const txt = CT[c.code] || c.text || c.code;
       const alt = c.feet ?? c.base_feet_agl ?? 0;
-      if (!porTexto2[txt] || alt > porTexto2[txt].alt)
-        porTexto2[txt] = { txt, alt, code: c.code };
+      if (!pt[txt] || alt > pt[txt].alt) pt[txt] = { txt, alt, code:c.code };
     });
-    const PRIO2 = { OVC:5, VV:5, BKN:4, SCT:3, FEW:2 };
-    nubesStr = Object.values(porTexto2)
-      .sort((a,b) => (PRIO2[b.code]||1)-(PRIO2[a.code]||1))
+    nubesStr = Object.values(pt)
+      .sort((a,b) => (P2[b.code]||1)-(P2[a.code]||1))
       .map(c => c.alt ? `${c.txt} (${c.alt.toLocaleString('es-AR')} ft)` : c.txt)
       .join(' · ');
   }
 
-  // Tiempo significativo
   const wx = (f.conditions || []).map(c => c.text || c.code).join(' · ');
-
   const lineas = [
     vientoStr ? `Viento <b>${esc(vientoStr)}</b>` : '',
     visStr    ? `Visibilidad <b>${esc(visStr)}</b>${wx ? ` <span class="taf-sub">en ${esc(wx)}</span>` : ''}` : '',
@@ -1031,7 +1028,7 @@ function renderTafPeriodo(f, tipo){
     <div class="taf-periodo">
       <div>
         <div class="taf-hora">${horaHtml}</div>
-        <span class="taf-tipo ${tipoClase[tipo]||'tipo-from'}">${tipoLabel[tipo]||tipo}</span>
+        <span class="taf-tipo ${tipoClase[codigo]||'tipo-from'}">${tipoLabel[codigo]||codigo}</span>
       </div>
       <div>
         <span class="taf-cat ${catCls}">${cat}</span>
@@ -1043,45 +1040,28 @@ function renderTafPeriodo(f, tipo){
 function renderTaf(icao, data){
   const $zona = document.getElementById(`taf-${icao}`);
   if (!$zona) return;
+  if (!data || !data.forecast?.length){ $zona.style.display = 'none'; return; }
 
-  if (!data){
-    $zona.innerHTML = `<div class="taf-error">Sin pronóstico TAF disponible para ${esc(icao)}.</div>`;
-    $zona.style.display = '';
-    return;
-  }
+  const vigDesde = horaUTC(data.period?.from);
+  const vigHasta = horaUTC(data.period?.to);
+  const vigencia = (vigDesde && vigHasta) ? `${vigDesde} – ${vigHasta}` : '';
+  const periodos = data.forecast.map(f => renderTafPeriodo(f)).join('');
+  const tafRawId = `taf-raw-${esc(icao)}`;
+  const tafBodyId = `tafbody-${esc(icao)}`;
 
-  const forecasts = data.forecast || [];
-  if (!forecasts.length){
-    $zona.style.display = 'none';
-    return;
-  }
-
-  // Período de validez del TAF
-  const vigDesde = horaZStr(data.timestamp?.from || data.period?.df);
-  const vigHasta = horaZStr(data.timestamp?.to   || data.period?.dt);
-
-  // Determinar tipo de cada período
-  let periodos = '';
-  forecasts.forEach((f, i) => {
-    const tipo = i === 0 ? 'BASE'
-      : f.change?.indicator?.code || f.type || 'FM';
-    periodos += renderTafPeriodo(f, tipo);
-  });
-
-  const tafId = `taf-raw-${esc(icao)}`;
   $zona.innerHTML = `
-    <div class="taf-header" onclick="this.classList.toggle('abierto');document.getElementById('tafbody-${esc(icao)}').classList.toggle('visible')">
+    <div class="taf-header" onclick="this.classList.toggle('abierto');document.getElementById('${tafBodyId}').classList.toggle('visible')">
       <span class="taf-arrow">▶</span>
       <span class="taf-titulo">📋 Pronóstico TAF</span>
-      <span class="taf-vigencia">${esc(vigDesde)} – ${esc(vigHasta)}</span>
+      <span class="taf-vigencia">${esc(vigencia)}</span>
     </div>
-    <div class="taf-body" id="tafbody-${esc(icao)}">
+    <div class="taf-body" id="${tafBodyId}">
       ${periodos}
       <div class="taf-pie">
-        <span>CheckWX · Horarios en UTC (Z)</span>
-        <span class="taf-raw-toggle" onclick="const r=document.getElementById('${tafId}');r.style.display=r.style.display==='none'?'block':'none'">TAF crudo</span>
+        <span>CheckWX · Horarios UTC</span>
+        <span class="taf-raw-toggle" onclick="const r=document.getElementById('${tafRawId}');r.style.display=r.style.display==='none'?'block':'none'">TAF crudo</span>
       </div>
-      <div class="taf-raw" id="${tafId}">${esc(data.raw_text || '—')}</div>
+      <div class="taf-raw" id="${tafRawId}">${esc(data.raw_text || '—')}</div>
     </div>`;
   $zona.style.display = '';
 }
@@ -1090,6 +1070,7 @@ async function cargarTaf(icao){
   const data = await loadTaf(icao);
   if (document.getElementById(`taf-${icao}`)) renderTaf(icao, data);
 }
+
 
 
 
