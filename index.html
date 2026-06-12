@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAVOK · Meteo Aeronáutica v31</title>
+<title>CAVOK · Meteo Aeronáutica v32</title>
 <meta name="description" content="Condiciones meteorológicas en tiempo real de aeropuertos argentinos (METAR)">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5B941">
@@ -439,7 +439,7 @@ footer b{color:var(--texto)}
 <script>
 'use strict';
 
-const APP_VERSION = 'v31';
+const APP_VERSION = 'v32';
 document.getElementById('appVersion').textContent = APP_VERSION;
 
 
@@ -494,7 +494,7 @@ window.addEventListener('appinstalled', () => {
 
 
 /* =====================================================
-   CAVOK v31 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
+   CAVOK v32 — Meteo aeronáutica mundial (METAR) + diagramas de pistas
    HTML/CSS/JS puro, sin frameworks.
    API: CheckWX v2 (2.000 req/día gratis)
 ===================================================== */
@@ -526,6 +526,7 @@ const CLOUD_TEXT = { SKC:'Despejado', CLR:'Despejado', NSC:'Sin nubes significat
 let tablero   = leerLS('tablero', []);     // [{icao, ciudad}]
 let historial = leerLS('historial', []);   // [{icao, ciudad}]
 let sugActiva = -1;
+const ULTIMO_METAR = {};   // icao -> data METAR (para compartir)
 
 /* ---------- Utilidades ---------- */
 function leerLS(clave, def){
@@ -809,6 +810,7 @@ function pintarTablero(){
           <div class="observado" id="obs-${esc(t.icao)}"></div>
         </div>
         <div class="botones">
+          <button class="btn-ico" title="Compartir" onclick="compartirTarjeta('${esc(t.icao)}')">📤</button>
           <button class="btn-ico" title="Actualizar" onclick="refrescar('${esc(t.icao)}')">⟳</button>
           <button class="btn-ico" title="Quitar" onclick="quitarTarjeta('${esc(t.icao)}')">✕</button>
         </div>
@@ -836,6 +838,8 @@ async function cargarTarjeta(icao, forzar = false){
     if ($obs) $obs.textContent = '';
     return;
   }
+
+  ULTIMO_METAR[icao] = data;
 
   /* --- métricas --- */
   const temp = data.temperature?.celsius != null ? `${data.temperature.celsius}°C` : '—';
@@ -1166,6 +1170,51 @@ function renderDecoder(icao, raw){
     <div class="decoder-titulo">🔤 Decodificación METAR</div>
     <div class="decoder-raw">${tokens}</div>
     <div class="decoder-traduccion">${traduccion}.</div>`;
+}
+
+
+/* =====================================================
+   COMPARTIR — envía las condiciones actuales por WhatsApp
+===================================================== */
+function compartirTarjeta(icao){
+  const data = ULTIMO_METAR[icao];
+  const entrada = tablero.find(t => t.icao === icao);
+  const ciudad = entrada?.ciudad || icao;
+
+  if (!data){
+    alert('Todavía no hay datos cargados para compartir.');
+    return;
+  }
+
+  const cat = data.flight_category || '—';
+  const temp = data.temperature?.celsius != null ? `${data.temperature.celsius}°C` : '—';
+
+  let viento = '—';
+  if (data.wind){
+    const vel = data.wind.speed?.kts ?? data.wind.speed_kts ?? null;
+    const dir = data.wind.direction || (data.wind.degrees != null ? `${data.wind.degrees}°` : '');
+    if (vel != null) viento = `${vel} kt${dir ? ' ' + dir : ''}`;
+    else if (dir) viento = dir;
+  }
+
+  let vis = '—';
+  if (data.visibility?.meters != null){
+    const m = parseFloat(String(data.visibility.meters).replace(/[^\d.]/g,''));
+    if (!isNaN(m)) vis = m >= 9999 ? '+10 km' : `${(m/1000).toFixed(1)} km`;
+  }
+
+  const obs = data.observed ? haceCuanto(data.observed) : '';
+
+  const lineas = [
+    `✈️ *${ciudad}* (${icao})`,
+    `${cat} · ${temp} · Viento ${viento} · Vis. ${vis}`,
+    obs ? `Reporte ${obs}` : '',
+    '',
+    `Vía CAVOK · https://meteoro405.github.io/cavok/`
+  ].filter(Boolean);
+
+  const texto = encodeURIComponent(lineas.join('\n'));
+  window.open(`https://wa.me/?text=${texto}`, '_blank');
 }
 
 function refrescar(icao){ cargarTarjeta(icao, true); }
